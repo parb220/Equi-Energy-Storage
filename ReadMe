@@ -1,0 +1,7 @@
+06/21/2012
+
+Connected to sdsm, and used sdsm_initialize, sdsm_put and sdsm_get. 
+Problems: 
+(1) sdsm_get may fail -- returns a NULL pointer
+(2) sdsm_db_get_item_count may be run -- always returns 0 (may need to initialize a Management object first)
+(3) may lose connection to mysqlserver
