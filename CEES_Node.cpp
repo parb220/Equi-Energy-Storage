@@ -1,30 +1,57 @@
+#include <boost/thread/xtime.hpp>
+#include <boost/thread/thread.hpp>
 #include <cstring>
 #include "CModel.h"
 #include "CBoundedModel.h"
 #include "sdsm.h"
 #include "CEES_Node.h"
 
+
 int CEES_Node::K;
 vector <double> CEES_Node::H; 
 vector <double> CEES_Node::T; 
 double CEES_Node::pee; 
-int CEES_Node::B; 
+
 int CEES_Node::N; 
 int CEES_Node::dataDim; 
 int CEES_Node::depositFreq; 
 CModel * CEES_Node::ultimate_target;
+int CEES_Node::sdsmPutMarker; 
+int CEES_Node::sdsmGetMarker;
 
-CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel *transition, CEES_Node *higher)
+CEES_Node::CEES_Node(int iEnergyLevel)
+{
+	id = iEnergyLevel; 
+	nSamplesGenerated = 0; 
+	
+	proposal = NULL; 
+	next_level = NULL; 
+
+	x_current = new double[dataDim]; 
+	x_new = new double [dataDim]; 
+
+	target = NULL; 
+	ring_size = vector <int> (K, 0); 
+}
+
+CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel *transition, CEES_Node *pNext)
 {
 	id = iEnergyLevel; 
 	nSamplesGenerated = 0; 
 
 	proposal = transition;
-	higher_level = higher; 
-
+	next_level = pNext;
+	
 	x_current = new double [dataDim]; 
 	x_new = new double [dataDim];
 
+	target = new CBoundedModel(H[id], T[id], ultimate_target); 
+	ring_size = vector< int> (K, 0);
+}
+
+void CEES_Node::SetID_LocalTarget(int iEnergyLevel)
+{
+	id = iEnergyLevel; 
 	target = new CBoundedModel(H[id], T[id], ultimate_target); 
 }
 
@@ -54,6 +81,23 @@ int CEES_Node::BinID(int energy_index) const
 	return id*K+energy_index; 
 }
 
+bool CEES_Node::EmptyBin_Get(double e) const
+{
+	int energy_index = GetRingIndex(e); 
+	if (ring_size[energy_index]/sdsmPutMarker == 0)
+		return true; 
+	else 
+		return false; 
+}
+
+bool CEES_Node::EmptyBin_Get(int energy_index) const
+{
+	if (ring_size[energy_index]/sdsmPutMarker == 0)
+		return true; 
+	else 
+		return false; 
+}
+
 bool CEES_Node::BurnInDone()
 {
 	if (nSamplesGenerated >= B)
@@ -72,19 +116,14 @@ void CEES_Node::Initialize(CModel * model, const gsl_rng *r)
 void CEES_Node::draw(const gsl_rng *r)
 {
 	int bin_id;
-	if (higher_level != NULL)
-		bin_id = higher_level->BinID(ring_index_current); // energy ring at the next level whose range of energy is the same that of x_current	
-	else 
-		bin_id = -1; 
-
 	bool new_sample_flag; 
 	sdsm_data_item *item_bin; 
-	if (bin_id <0 || sdsm_db_get_item_count(bin_id) == 0) // MH draw
+	if (next_level == NULL || next_level->EmptyBin_Get(ring_index_current)) // MH draw
 	{
 		target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag); 
 		if (new_sample_flag)
 		{
-			memcpy(x_current, x_new, sizeof(x_new)); 
+			memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
 			energy_current = OriginalEnergy(x_new, dataDim); 
 			ring_index_current = GetRingIndex(energy_current); 
 		}
@@ -92,23 +131,32 @@ void CEES_Node::draw(const gsl_rng *r)
 	else	// equi-energy draw
 	{
 		double uniform_draw = gsl_rng_uniform(r); 
-		if (uniform_draw <= pee)
+		bin_id = next_level->BinID(ring_index_current); 
+		if (uniform_draw <= pee /*&& sdsm_db_get_item_count(bin_id) >0*/ )
 		{
-			item_bin = sdsm_get(bin_id); // randomly pick a data point from bin_id; 	
-			memcpy(x_new, item_bin->data, sizeof(item_bin->data));
-			double ratio=ProbabilityRatio(x_new, x_current, dataDim); 
-			ratio = ratio * higher_level->ProbabilityRatio(x_current, x_new, dataDim);  
-			double another_uniform_draw = gsl_rng_uniform(r); 
-			if (another_uniform_draw <= ratio)
-				memcpy(x_current, x_new, sizeof(x_new));
-			sdsm_release(item_bin);
+			item_bin = sdsm_get(bin_id); 
+			/* test */
+			boost::this_thread::sleep(boost::posix_time::milliseconds(100)); 
+			/* test */
+			if (item_bin != NULL) // randomly pick a data point from bin_id; 	
+			{
+				memcpy(x_new, item_bin->data, sizeof(item_bin->data)*dataDim);
+				double ratio=ProbabilityRatio(x_new, x_current, dataDim); 
+				ratio = ratio * next_level->ProbabilityRatio(x_current, x_new, dataDim);  
+				double another_uniform_draw = gsl_rng_uniform(r); 
+				if (another_uniform_draw <= ratio)
+					memcpy(x_current, x_new, sizeof(x_new)*dataDim);
+				sdsm_release(item_bin); 
+			} 
+			else 
+				cout << "Error in sdsm get.\n"; 
 		} 
 		else 
 		{
 			target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag); 
 			if (new_sample_flag)
 			{
-				memcpy(x_current, x_new, sizeof(x_new)); 
+				memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
 				energy_current = OriginalEnergy(x_new, dataDim); 
 				ring_index_current = GetRingIndex(energy_current); 
 			}
@@ -118,8 +166,12 @@ void CEES_Node::draw(const gsl_rng *r)
 	if (BurnInDone() && (nSamplesGenerated-B)%depositFreq==0)
 	{
 		bin_id = BinID(ring_index_current); 
-		if (sdsm_put(bin_id, x_current, sizeof(x_current), 1) < 0)
-			cout << "Error in sdsm_put.\n"; 
+		if (sdsm_put(bin_id, x_current, dataDim, 1) < 0)
+			cout << "Error in sdsm_put.\n";
+		/* test */
+		boost::this_thread::sleep(boost::posix_time::milliseconds(100)); 
+		/* test */
+		ring_size[ring_index_current] ++;
 	}
 	nSamplesGenerated ++;
 }
@@ -164,7 +216,7 @@ void CEES_Node::SetBurnInPeriod(int b)
 	B = b; 
 }
 
-int CEES_Node::GetBurnInPeriod() 
+int CEES_Node::GetBurnInPeriod()  const
 {
 	return B; 
 }
@@ -267,4 +319,18 @@ int CEES_Node::GetRingIndex(double e) const
 			return j-1; 
 	}	
 	return K-1;
+}
+
+void CEES_Node::SetSDSMParameters(int p, int g)
+{
+	sdsmPutMarker = p; 
+	sdsmGetMarker = g; 
+}
+
+bool CEES_Node::EnergyRingBuildDone() const
+{
+	if (nSamplesGenerated >= B+N)
+		return true; 
+	else 
+		return false;
 }

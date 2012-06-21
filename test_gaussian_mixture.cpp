@@ -66,7 +66,6 @@ int main()
  	*/
 	CEES_Node::SetEnergyLevelNumber(NUMBER_ENERGY_LEVEL); 		// Number of energy levels; 
 	CEES_Node::SetEquiEnergyJumpProb(PEE);				// Probability for equal energy jump
-	CEES_Node::SetBurnInPeriod(BURN_IN_PERIOD);			// Burn-in period
 	CEES_Node::SetPeriodBuildInitialRing(BUILD_INITIAL_ENERGY_SET_PERIOD);	// Period to build initial energy ring
 	CEES_Node::SetDataDimension(DATA_DIMENSION); 		// Data dimension 
 	CEES_Node::SetDepositFreq(DEPOSIT_FREQUENCY); 		// Frequency of deposit
@@ -106,11 +105,17 @@ int main()
 	CModel *initial_model = new CUniformModel(CEES_Node::GetDataDimension(), lB, uB); 
 	for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
 	{
-		simulator_node[i].SetID(i);
+		simulator_node[i].SetID_LocalTarget(i); 
 		if (i < CEES_Node::GetEnergyLevelNumber() -1)
+		{
+			simulator_node[i].SetBurnInPeriod(0);
 			simulator_node[i].SetHigherNodePointer(simulator_node+i+1);
+		}
 		else 
-			simulator_node[i].SetHigherNodePointer(NULL); 
+		{
+			simulator_node[i].SetHigherNodePointer(NULL);
+			simulator_node[i].SetBurnInPeriod(BURN_IN_PERIOD);  
+		}
 		/* Transition_SimpleGaussian with sigma=0.25sqrt(T) used for each energy level as the proposal model */	
                 for (int j=0; j<CEES_Node::GetDataDimension(); j++)
                         sigma[j] = 0.25 * sqrt(simulator_node[i].GetTemperature());
@@ -126,10 +131,10 @@ int main()
 	/*
  	SDSM initialization and set up
  	*/
-	int run_id = time(NULL);
+	int run_id =time(NULL);
 	bool if_restart_old_run = false; 
-	int get_marker = 1000; 
-	int put_marker = 1000; 
+	int get_marker = 100; 
+	int put_marker = 100; 
 	int number_bins = CEES_Node::GetEnergyLevelNumber()*CEES_Node::GetEnergyLevelNumber();
 	bool if_uniformly_weighted_items = true; 
 	bool if_database_secondary_memory_available = true; 
@@ -138,6 +143,7 @@ int main()
 	int cluster_task_id = 0; 	// only matters when running on clusters
 	char tags[] = "equi-energy, sdsm, test for gaussian mixture";
 	sdsm_init(run_id, if_restart_old_run, get_marker, put_marker, number_bins, if_uniformly_weighted_items, if_database_secondary_memory_available, db_serv_adrs, if_cluster, cluster_task_id, tags); 
+	CEES_Node::SetSDSMParameters(put_marker, get_marker); 
 
 	/* testing sdsm */
 	string finish_remark("Finishing.");  
@@ -147,11 +153,12 @@ int main()
 	/*
  	Burn-in and simulation
  	*/
-	for (int n=0; n<(CEES_Node::GetEnergyLevelNumber()-1)*(CEES_Node::GetBurnInPeriod()+CEES_Node::GetPeriodBuildInitialRing())+CEES_Node::GetBurnInPeriod()+SIMULATION_LENGTH; n++)
+	for (int n=0; n<(CEES_Node::GetEnergyLevelNumber()-1)*CEES_Node::GetPeriodBuildInitialRing()+SIMULATION_LENGTH; n++)
 	{
-		for (int i=CEES_Node::GetEnergyLevelNumber()-1; i>=0; i--)
+		simulator_node[CEES_Node::GetEnergyLevelNumber()-1].draw(r); 
+		for (int i=CEES_Node::GetEnergyLevelNumber()-2; i>=0; i--)
 		{
-			if (n >= (CEES_Node::GetEnergyLevelNumber()-1-i)*(CEES_Node::GetBurnInPeriod()+CEES_Node::GetPeriodBuildInitialRing()) )
+			if (simulator_node[i+1].EnergyRingBuildDone())
 				simulator_node[i].draw(r);
 		}
 	}
