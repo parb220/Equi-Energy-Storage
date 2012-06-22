@@ -27,15 +27,19 @@
 #include "CTransitionModel.h"
 #include "CTransitionModel_SimpleGaussian.h"
 #include "CEES_Node.h"
-#include "sdsm.h"
+#include "CSampleIDWeight.h"
+#include "CStorageHead.h"
+/* sdsm #include "sdsm.h" */
 
 using namespace std;
 
 bool Configure_GaussianMixtureModel_File(CMixtureModel &, const string); 
+/* sdsm 
 void handler(void *tag)
 {
 	cout << ((char*)tag)<< endl;
 }
+*/
 
 int main()
 {
@@ -61,13 +65,21 @@ int main()
 	r = gsl_rng_alloc(T); 
 	gsl_rng_set(r, (unsigned)time(NULL)); 
 
+	/* Initialize Storage  */
+	int run_id = time(NULL); // by default, use current time as run_id; 
+	int get_marker = 100;	// Keep get_marker samples in memory for draw 
+	int put_marker = 100;	// Dump every put_marker samples
+	int number_bins = NUMBER_ENERGY_LEVEL * NUMBER_ENERGY_LEVEL;   
+	CSampleIDWeight::SetDataDimension(DATA_DIMENSION);	// Data dimension for storage (put and get) 
+	CStorageHead storage(run_id, get_marker, put_marker, number_bins); 
+	
 	/*
  	Initialize an equi_energy object for sampling
  	*/
 	CEES_Node::SetEnergyLevelNumber(NUMBER_ENERGY_LEVEL); 		// Number of energy levels; 
 	CEES_Node::SetEquiEnergyJumpProb(PEE);				// Probability for equal energy jump
 	CEES_Node::SetPeriodBuildInitialRing(BUILD_INITIAL_ENERGY_SET_PERIOD);	// Period to build initial energy ring
-	CEES_Node::SetDataDimension(DATA_DIMENSION); 		// Data dimension 
+	CEES_Node::SetDataDimension(DATA_DIMENSION); 		// Data dimension for simulation
 	CEES_Node::SetDepositFreq(DEPOSIT_FREQUENCY); 		// Frequency of deposit
 	CEES_Node::ultimate_target = &target;	
 
@@ -128,9 +140,9 @@ int main()
 	delete [] uB; 
 	delete [] sigma; 
 
-	/*
+	/* sdsm
  	SDSM initialization and set up
- 	*/
+ 	
 	int run_id =time(NULL);
 	bool if_restart_old_run = false; 
 	int get_marker = 100; 
@@ -144,27 +156,29 @@ int main()
 	char tags[] = "equi-energy, sdsm, test for gaussian mixture";
 	sdsm_init(run_id, if_restart_old_run, get_marker, put_marker, number_bins, if_uniformly_weighted_items, if_database_secondary_memory_available, db_serv_adrs, if_cluster, cluster_task_id, tags); 
 	CEES_Node::SetSDSMParameters(put_marker, get_marker); 
+	*/
 
-	/* testing sdsm */
+	/* sdsm: testing sdsm
 	string finish_remark("Finishing.");  
 	sdsm_register_handler(handler, (void *)(finish_remark.data()));
-	/* */
+	*/
+	
 	
 	/*
  	Burn-in and simulation
  	*/
 	for (int n=0; n<(CEES_Node::GetEnergyLevelNumber()-1)*CEES_Node::GetPeriodBuildInitialRing()+SIMULATION_LENGTH; n++)
 	{
-		simulator_node[CEES_Node::GetEnergyLevelNumber()-1].draw(r); 
+		simulator_node[CEES_Node::GetEnergyLevelNumber()-1].draw(r, storage); 
 		for (int i=CEES_Node::GetEnergyLevelNumber()-2; i>=0; i--)
 		{
 			if (simulator_node[i+1].EnergyRingBuildDone())
-				simulator_node[i].draw(r);
+				simulator_node[i].draw(r, storage); 
 		}
 	}
 
 		
-	sdsm_finalize(); 
+	/* sdsm: sdsm_finalize(); */
 	/*
 	Output samples into files
  		

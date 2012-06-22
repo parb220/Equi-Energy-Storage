@@ -3,9 +3,9 @@
 #include <cstring>
 #include "CModel.h"
 #include "CBoundedModel.h"
-#include "sdsm.h"
+// sdsm: #include "sdsm.h"
 #include "CEES_Node.h"
-
+#include "CStorageHead.h"
 
 int CEES_Node::K;
 vector <double> CEES_Node::H; 
@@ -113,6 +113,7 @@ void CEES_Node::Initialize(CModel * model, const gsl_rng *r)
 	nSamplesGenerated ++;
 }
 
+/* sdsm: 
 void CEES_Node::draw(const gsl_rng *r)
 {
 	int bin_id;
@@ -132,12 +133,10 @@ void CEES_Node::draw(const gsl_rng *r)
 	{
 		double uniform_draw = gsl_rng_uniform(r); 
 		bin_id = next_level->BinID(ring_index_current); 
-		if (uniform_draw <= pee /*&& sdsm_db_get_item_count(bin_id) >0*/ )
+		if (uniform_draw <= pee) // && sdsm_db_get_item_count(bin_id) >0 )
 		{
 			item_bin = sdsm_get(bin_id); 
-			/* test */
 			boost::this_thread::sleep(boost::posix_time::milliseconds(100)); 
-			/* test */
 			if (item_bin != NULL) // randomly pick a data point from bin_id; 	
 			{
 				memcpy(x_new, item_bin->data, sizeof(item_bin->data)*dataDim);
@@ -168,13 +167,12 @@ void CEES_Node::draw(const gsl_rng *r)
 		bin_id = BinID(ring_index_current); 
 		if (sdsm_put(bin_id, x_current, dataDim, 1) < 0)
 			cout << "Error in sdsm_put.\n";
-		/* test */
 		boost::this_thread::sleep(boost::posix_time::milliseconds(100)); 
-		/* test */
 		ring_size[ring_index_current] ++;
 	}
 	nSamplesGenerated ++;
 }
+*/
 
 double CEES_Node::ProbabilityRatio(const double *x, const double *y, int dim)
 {
@@ -333,4 +331,56 @@ bool CEES_Node::EnergyRingBuildDone() const
 		return true; 
 	else 
 		return false;
+}
+
+void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
+{
+	int bin_id, x_id; 
+	bool new_sample_flag;
+	double x_weight; 
+	if (next_level != NULL)
+		bin_id = next_level->BinID(ring_index_current); 
+	if (next_level == NULL || storage.empty(bin_id)) // MH draw
+	{
+		target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag); 
+		if (new_sample_flag)
+		{
+			memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
+			energy_current = OriginalEnergy(x_new, dataDim); 
+			ring_index_current = GetRingIndex(energy_current); 
+		}
+	}
+	else	// equi-energy draw
+	{
+		double uniform_draw = gsl_rng_uniform(r); 
+		if (uniform_draw <= pee )
+		{
+			storage.DrawSample(bin_id, x_new, dataDim, x_id, x_weight, r); 
+			double ratio=ProbabilityRatio(x_new, x_current, dataDim); 
+			ratio = ratio * next_level->ProbabilityRatio(x_current, x_new, dataDim);  
+			double another_uniform_draw = gsl_rng_uniform(r); 
+			if (another_uniform_draw <= ratio)
+				memcpy(x_current, x_new, sizeof(x_new)*dataDim);
+		} 
+		else 
+		{
+			target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag); 
+			if (new_sample_flag)
+			{
+				memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
+				energy_current = OriginalEnergy(x_new, dataDim); 
+				ring_index_current = GetRingIndex(energy_current); 
+			}
+		}
+	}
+
+	if (BurnInDone() && (nSamplesGenerated-B)%depositFreq==0)
+	{
+		bin_id = BinID(ring_index_current); 
+		x_id = nSamplesGenerated; 
+		x_weight = 1.0; 
+		storage.DepositSample(bin_id, x_current, dataDim, x_id, x_weight); 
+		ring_size[ring_index_current] ++;
+	}
+	nSamplesGenerated ++;
 }
