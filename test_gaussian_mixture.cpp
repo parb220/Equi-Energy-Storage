@@ -67,11 +67,12 @@ int main()
 
 	/* Initialize Storage  */
 	int run_id = time(NULL); // by default, use current time as run_id; 
-	int get_marker = 100;	// Keep get_marker samples in memory for draw 
-	int put_marker = 100;	// Dump every put_marker samples
+	int get_marker = 10000;	// Keep get_marker samples in memory for draw 
+	int put_marker = 10000;	// Dump every put_marker samples
 	int number_bins = NUMBER_ENERGY_LEVEL * NUMBER_ENERGY_LEVEL;   
 	CSampleIDWeight::SetDataDimension(DATA_DIMENSION);	// Data dimension for storage (put and get) 
-	CStorageHead storage(run_id, get_marker, put_marker, number_bins); 
+	CStorageHead storage(run_id, get_marker, put_marker, number_bins, string("/home/f1hxw01/equal_energy_hw/equi_energy_sdsm_data/")); 
+	storage.makedir();
 	
 	/*
  	Initialize an equi_energy object for sampling
@@ -177,6 +178,8 @@ int main()
 		}
 	}
 
+	storage.finalize(); 		// save to hard-disk of those unsaved data
+
 		
 	/* sdsm: sdsm_finalize(); */
 	/*
@@ -201,6 +204,20 @@ int main()
 	/*
  	Release random number generator
  	*/
+	/* finalize: write CStorageHead and CEES_Node information into a file.
+ 	*/
+	string file = storage.GetSummaryFileName(); 
+	ofstream oFile; 
+	oFile.open(file.c_str());
+	if (!oFile)
+	{
+		cout << "Error in writing the summary file.\n"; 
+		exit(-1); 
+	}
+	summary(oFile, storage); 
+	summary(oFile, simulator_node[CEES_Node::GetEnergyLevelNumber()-1]);   
+	oFile.close(); 
+	
 	gsl_rng_free(r); 
 }
 

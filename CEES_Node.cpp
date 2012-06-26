@@ -384,3 +384,22 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 	}
 	nSamplesGenerated ++;
 }
+
+ofstream & summary(ofstream &of, const CEES_Node &simulator)
+{
+	of << "Number of Energy Levels:\t" << CEES_Node::K << endl; 
+	of << "Energy Thresholds:"; 
+	for (int i=0; i<CEES_Node::K; i++)
+		of << "\t" << CEES_Node::H[i];
+	of << endl; 
+	of << "Temperatures:"; 
+	for (int i=0; i<CEES_Node::K; i++)
+		of << "\t" << CEES_Node::T[i]; 
+	of << endl; 
+	of << "Prob Equi-Jump:\t" << CEES_Node::pee << endl; 
+	of << "Burn-In:\t" << simulator.B << endl; 
+	of << "Build Initial Ring:\t" << CEES_Node::N << endl; 
+	of << "Deposit Frequency:\t" << CEES_Node::depositFreq << endl; 
+	return of;
+}
+
