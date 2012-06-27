@@ -387,6 +387,7 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 
 ofstream & summary(ofstream &of, const CEES_Node &simulator)
 {
+	of << "Data Dimension:\t" << CEES_Node::dataDim << endl; 
 	of << "Number of Energy Levels:\t" << CEES_Node::K << endl; 
 	of << "Energy Thresholds:"; 
 	for (int i=0; i<CEES_Node::K; i++)

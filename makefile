@@ -58,9 +58,16 @@ $(EXECUTABLE) : $(OBJS) $(DISTR_MODEL_OBJS)
 	$(CPP) $(CPPFLAGS) $(INCLUDE_DIR) -c $< -o $@
 
 clean: 
-	rm -f *.o $(EXECUTABLE)
+	rm -f *.o $(EXECUTABLE) binary2text
 
 
+##################################
+# binary2text
+##################################
 
+binary2text.o:	binary2text.cpp
+	$(CPP) $(CPPFLAGS) $(INCLUDE_DIR) -c binary2text.cpp -o binary2text.o
 
+binary2text: binary2text.o CSampleIDWeight.o
+	$(CPP) $(LINKFLAGS) binary2text.o CSampleIDWeight.o $(LIBS_DIR) $(LIBS) -o binary2text
 

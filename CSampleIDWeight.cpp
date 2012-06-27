@@ -111,3 +111,22 @@ int CSampleIDWeight::GetSize_Data()
 {	
 	return sizeof(double)*dim+sizeof(int)+sizeof(double); 
 }
+
+istream& operator >> (istream &inputStr, CSampleIDWeight &sample)
+{
+	for (int i=0; i<CSampleIDWeight::dim; i++)
+		inputStr >> sample.data[i]; 
+	inputStr >> sample.id; 
+	inputStr >> sample.weight; 
+	return inputStr; 
+}
+
+ostream& operator << (ostream &outputStr, const CSampleIDWeight &sample)
+{
+	for (int i=0; i<CSampleIDWeight::dim; i++)
+		outputStr << sample.data[i] << "\t"; 
+	outputStr << sample.id << "\t"; 
+	outputStr << sample.weight << endl; 
+
+	return outputStr; 
+}

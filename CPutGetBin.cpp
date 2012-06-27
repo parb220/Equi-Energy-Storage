@@ -70,7 +70,7 @@ int CPutGetBin::DepositSample(const double *x, int x_d, int x_index, double x_we
 bool CPutGetBin::Dump(int n)
 {
 	stringstream convert;
-	convert << "." << id << "." << n;	 
+	convert << id << "." << n;	 
 	string file_name = filename_prefix + convert.str(); 
 	fstream oFile(file_name.c_str(), ios::out | ios::binary); 
 	if (!oFile)
@@ -161,7 +161,7 @@ bool CPutGetBin::ReadFromOneFile(int i, int &counter, const vector <int> &index)
 	stringstream convert;
 
 	convert.str(std::string());
-	convert << "." << id << "." << i;
+	convert << id << "." << i;
         file_name = filename_prefix + convert.str();
         iFile.open(file_name.c_str(), ios::in|ios::binary);
         if (!iFile)
