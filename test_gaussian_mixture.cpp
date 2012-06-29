@@ -29,17 +29,10 @@
 #include "CEES_Node.h"
 #include "CSampleIDWeight.h"
 #include "CStorageHead.h"
-/* sdsm #include "sdsm.h" */
 
 using namespace std;
 
 bool Configure_GaussianMixtureModel_File(CMixtureModel &, const string); 
-/* sdsm 
-void handler(void *tag)
-{
-	cout << ((char*)tag)<< endl;
-}
-*/
 
 int main()
 {
@@ -71,9 +64,9 @@ int main()
 	int put_marker = 10000;	// Dump every put_marker samples
 	int number_bins = NUMBER_ENERGY_LEVEL * NUMBER_ENERGY_LEVEL;   
 	CSampleIDWeight::SetDataDimension(DATA_DIMENSION);	// Data dimension for storage (put and get) 
-	CStorageHead storage(run_id, get_marker, put_marker, number_bins, string("/home/f1hxw01/equal_energy_hw/equi_energy_sdsm_data/")); 
+	CStorageHead storage(run_id, get_marker, put_marker, number_bins, string("/home/f1hxw01/equal_energy_hw/equi_energy_storage_data/")); 
 	storage.makedir();
-	
+		
 	/*
  	Initialize an equi_energy object for sampling
  	*/
@@ -141,30 +134,6 @@ int main()
 	delete [] uB; 
 	delete [] sigma; 
 
-	/* sdsm
- 	SDSM initialization and set up
- 	
-	int run_id =time(NULL);
-	bool if_restart_old_run = false; 
-	int get_marker = 100; 
-	int put_marker = 100; 
-	int number_bins = CEES_Node::GetEnergyLevelNumber()*CEES_Node::GetEnergyLevelNumber();
-	bool if_uniformly_weighted_items = true; 
-	bool if_database_secondary_memory_available = true; 
-	char db_serv_adrs[] = "localhost";
-	bool if_cluster = false; 
-	int cluster_task_id = 0; 	// only matters when running on clusters
-	char tags[] = "equi-energy, sdsm, test for gaussian mixture";
-	sdsm_init(run_id, if_restart_old_run, get_marker, put_marker, number_bins, if_uniformly_weighted_items, if_database_secondary_memory_available, db_serv_adrs, if_cluster, cluster_task_id, tags); 
-	CEES_Node::SetSDSMParameters(put_marker, get_marker); 
-	*/
-
-	/* sdsm: testing sdsm
-	string finish_remark("Finishing.");  
-	sdsm_register_handler(handler, (void *)(finish_remark.data()));
-	*/
-	
-	
 	/*
  	Burn-in and simulation
  	*/
@@ -179,33 +148,6 @@ int main()
 	}
 
 	storage.finalize(); 		// save to hard-disk of those unsaved data
-
-		
-	/* sdsm: sdsm_finalize(); */
-	/*
-	Output samples into files
- 		
-	filename_base = "gaussian_mixture_sample."; 
-	char *char_buffer = new char[100]; 
-	string filename; 
-	for (int i=0; i<equi_energy_simulator.GetNumberEnergyLevels(); i++)
-	{
-		memset(char_buffer, 0, sizeof(char_buffer)); 
-		sprintf(char_buffer, "%d", i); 
-		filename = filename_base + char_buffer; 
-		if (equi_energy_simulator.Output_Samples_EnergyLevel_File(i, filename) < 0)
-		{
-			cout << "Error in outputting the " << i << "-th energy level samples.\n";
-			exit(-1);
-		}
-	}
-	delete [] char_buffer; 
-	*/
-	/*
- 	Release random number generator
- 	*/
-	/* finalize: write CStorageHead and CEES_Node information into a file.
- 	*/
 	string file = storage.GetSummaryFileName(); 
 	ofstream oFile; 
 	oFile.open(file.c_str());

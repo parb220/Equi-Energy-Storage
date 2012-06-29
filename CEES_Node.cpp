@@ -3,7 +3,6 @@
 #include <cstring>
 #include "CModel.h"
 #include "CBoundedModel.h"
-// sdsm: #include "sdsm.h"
 #include "CEES_Node.h"
 #include "CStorageHead.h"
 
@@ -16,8 +15,6 @@ int CEES_Node::N;
 int CEES_Node::dataDim; 
 int CEES_Node::depositFreq; 
 CModel * CEES_Node::ultimate_target;
-int CEES_Node::sdsmPutMarker; 
-int CEES_Node::sdsmGetMarker;
 
 CEES_Node::CEES_Node(int iEnergyLevel)
 {
@@ -81,23 +78,6 @@ int CEES_Node::BinID(int energy_index) const
 	return id*K+energy_index; 
 }
 
-bool CEES_Node::EmptyBin_Get(double e) const
-{
-	int energy_index = GetRingIndex(e); 
-	if (ring_size[energy_index]/sdsmPutMarker == 0)
-		return true; 
-	else 
-		return false; 
-}
-
-bool CEES_Node::EmptyBin_Get(int energy_index) const
-{
-	if (ring_size[energy_index]/sdsmPutMarker == 0)
-		return true; 
-	else 
-		return false; 
-}
-
 bool CEES_Node::BurnInDone()
 {
 	if (nSamplesGenerated >= B)
@@ -112,67 +92,6 @@ void CEES_Node::Initialize(CModel * model, const gsl_rng *r)
 	ring_index_current = GetRingIndex(energy_current); 
 	nSamplesGenerated ++;
 }
-
-/* sdsm: 
-void CEES_Node::draw(const gsl_rng *r)
-{
-	int bin_id;
-	bool new_sample_flag; 
-	sdsm_data_item *item_bin; 
-	if (next_level == NULL || next_level->EmptyBin_Get(ring_index_current)) // MH draw
-	{
-		target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag); 
-		if (new_sample_flag)
-		{
-			memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
-			energy_current = OriginalEnergy(x_new, dataDim); 
-			ring_index_current = GetRingIndex(energy_current); 
-		}
-	}
-	else	// equi-energy draw
-	{
-		double uniform_draw = gsl_rng_uniform(r); 
-		bin_id = next_level->BinID(ring_index_current); 
-		if (uniform_draw <= pee) // && sdsm_db_get_item_count(bin_id) >0 )
-		{
-			item_bin = sdsm_get(bin_id); 
-			boost::this_thread::sleep(boost::posix_time::milliseconds(100)); 
-			if (item_bin != NULL) // randomly pick a data point from bin_id; 	
-			{
-				memcpy(x_new, item_bin->data, sizeof(item_bin->data)*dataDim);
-				double ratio=ProbabilityRatio(x_new, x_current, dataDim); 
-				ratio = ratio * next_level->ProbabilityRatio(x_current, x_new, dataDim);  
-				double another_uniform_draw = gsl_rng_uniform(r); 
-				if (another_uniform_draw <= ratio)
-					memcpy(x_current, x_new, sizeof(x_new)*dataDim);
-				sdsm_release(item_bin); 
-			} 
-			else 
-				cout << "Error in sdsm get.\n"; 
-		} 
-		else 
-		{
-			target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag); 
-			if (new_sample_flag)
-			{
-				memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
-				energy_current = OriginalEnergy(x_new, dataDim); 
-				ring_index_current = GetRingIndex(energy_current); 
-			}
-		}
-	}
-
-	if (BurnInDone() && (nSamplesGenerated-B)%depositFreq==0)
-	{
-		bin_id = BinID(ring_index_current); 
-		if (sdsm_put(bin_id, x_current, dataDim, 1) < 0)
-			cout << "Error in sdsm_put.\n";
-		boost::this_thread::sleep(boost::posix_time::milliseconds(100)); 
-		ring_size[ring_index_current] ++;
-	}
-	nSamplesGenerated ++;
-}
-*/
 
 double CEES_Node::ProbabilityRatio(const double *x, const double *y, int dim)
 {
@@ -319,12 +238,6 @@ int CEES_Node::GetRingIndex(double e) const
 	return K-1;
 }
 
-void CEES_Node::SetSDSMParameters(int p, int g)
-{
-	sdsmPutMarker = p; 
-	sdsmGetMarker = g; 
-}
-
 bool CEES_Node::EnergyRingBuildDone() const
 {
 	if (nSamplesGenerated >= B+N)
@@ -335,12 +248,12 @@ bool CEES_Node::EnergyRingBuildDone() const
 
 void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 {
-	int bin_id, x_id; 
+	int bin_id_next_level, bin_id, x_id; 
 	bool new_sample_flag;
 	double x_weight; 
 	if (next_level != NULL)
-		bin_id = next_level->BinID(ring_index_current); 
-	if (next_level == NULL || storage.empty(bin_id)) // MH draw
+		bin_id_next_level = next_level->BinID(ring_index_current); 
+	if (next_level == NULL || storage.empty(bin_id_next_level)) // MH draw
 	{
 		target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag); 
 		if (new_sample_flag)
@@ -355,7 +268,7 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 		double uniform_draw = gsl_rng_uniform(r); 
 		if (uniform_draw <= pee )
 		{
-			storage.DrawSample(bin_id, x_new, dataDim, x_id, x_weight, r); 
+			storage.DrawSample(bin_id_next_level, x_new, dataDim, x_id, x_weight, r); 
 			double ratio=ProbabilityRatio(x_new, x_current, dataDim); 
 			ratio = ratio * next_level->ProbabilityRatio(x_current, x_new, dataDim);  
 			double another_uniform_draw = gsl_rng_uniform(r); 
