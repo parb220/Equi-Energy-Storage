@@ -20,6 +20,9 @@ CEES_Node::CEES_Node(int iEnergyLevel)
 {
 	id = iEnergyLevel; 
 	nSamplesGenerated = 0; 
+	nMHSamplesGenerated_Recent = 0; 
+	nMHSamplesAccepted_Recent = 0; 
+	MH_On = false;
 	
 	proposal = NULL; 
 	next_level = NULL; 
@@ -35,6 +38,9 @@ CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel *transition, CEES_Node *
 {
 	id = iEnergyLevel; 
 	nSamplesGenerated = 0; 
+	nMHSamplesGenerated_Recent = 0; 
+	nMHSamplesAccepted_Recent = 0; 
+	MH_On = false; 
 
 	proposal = transition;
 	next_level = pNext;
@@ -270,8 +276,12 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 			energy_current = OriginalEnergy(x_new, dataDim); 
 			ring_index_current = GetRingIndex(energy_current); 
 		}
+		if (MH_On)
+			nMHSamplesGenerated_Recent ++; 
+		if (MH_On && new_sample_flag)
+			nMHSamplesAccepted_Recent ++; 
 	}
-	else	// equi-energy draw
+	else	// equi-energy draw with prob. of pee
 	{
 		double uniform_draw = gsl_rng_uniform(r); 
 		if (uniform_draw <= pee )
@@ -283,7 +293,7 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 			if (another_uniform_draw <= ratio)
 				memcpy(x_current, x_new, sizeof(x_new)*dataDim);
 		} 
-		else 
+		else	// MH draw 
 		{
 			target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag); 
 			if (new_sample_flag)
@@ -292,6 +302,10 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 				energy_current = OriginalEnergy(x_new, dataDim); 
 				ring_index_current = GetRingIndex(energy_current); 
 			}
+			if (MH_On)
+                        	nMHSamplesGenerated_Recent ++; 
+                	if (MH_On && new_sample_flag)
+                        	nMHSamplesAccepted_Recent ++;
 		}
 	}
 
@@ -303,6 +317,8 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 		storage.DepositSample(bin_id, x_current, dataDim, x_id, x_weight); 
 		ring_size[ring_index_current] ++;
 	}
+	if (MH_On && nMHSamplesGenerated_Recent >= MH_Tracking_Length)
+		MH_Tracking_End(); 
 	nSamplesGenerated ++;
 }
 
@@ -323,5 +339,26 @@ ofstream & summary(ofstream &of, const CEES_Node &simulator)
 	of << "Build Initial Ring:\t" << CEES_Node::N << endl; 
 	of << "Deposit Frequency:\t" << CEES_Node::depositFreq << endl; 
 	return of;
+}
+
+void CEES_Node::MH_Tracking_Start(int trackingL, double lp, double up)
+{
+	MH_On = true; 
+	nMHSamplesGenerated_Recent = 0; 
+	nMHSamplesAccepted_Recent = 0; 
+	MH_Tracking_Length = trackingL; 
+	MH_lower_target_prob = lp; 
+	MH_upper_target_prob = up; 
+}
+
+void CEES_Node::MH_Tracking_End()
+{
+	double accept_ratio = (double)(nMHSamplesAccepted_Recent)/nMHSamplesGenerated_Recent; 
+	if (accept_ratio < MH_lower_target_prob)	// should decrease stepsize
+		proposal->step_size_tune(accept_ratio/MH_lower_target_prob); 
+	else if (accept_ratio > MH_upper_target_prob ) 	// should increase stepsize
+		proposal->step_size_tune(accept_ratio/MH_upper_target_prob); 
+
+	MH_On = false; 
 }
 

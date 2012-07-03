@@ -139,6 +139,11 @@ int main()
  	*/
 	for (int n=0; n<(CEES_Node::GetEnergyLevelNumber()-1)*CEES_Node::GetPeriodBuildInitialRing()+SIMULATION_LENGTH; n++)
 	{
+		if ( (n% MH_TRACKING_FREQUENCY) == 0)
+		{
+			for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
+				simulator_node[i].MH_Tracking_Start(MH_TRACKING_LENGTH, 0.22, 0.32); 
+		}
 		simulator_node[CEES_Node::GetEnergyLevelNumber()-1].draw(r, storage); 
 		for (int i=CEES_Node::GetEnergyLevelNumber()-2; i>=0; i--)
 		{
