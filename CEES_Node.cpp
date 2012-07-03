@@ -93,6 +93,14 @@ void CEES_Node::Initialize(CModel * model, const gsl_rng *r)
 	nSamplesGenerated ++;
 }
 
+void CEES_Node::Initialize(const double *x, int x_d)
+{
+	memcpy(x_current, x, sizeof(double)*dataDim); 
+	energy_current = OriginalEnergy(x_current, dataDim); 
+	ring_index_current = GetRingIndex(energy_current); 
+	nSamplesGenerated++;
+}
+
 double CEES_Node::ProbabilityRatio(const double *x, const double *y, int dim)
 {
 	return target->probability(x, dim)/target->probability(y, dim); 
