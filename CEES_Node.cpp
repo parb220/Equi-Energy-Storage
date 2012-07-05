@@ -15,11 +15,14 @@ int CEES_Node::N;
 int CEES_Node::dataDim; 
 int CEES_Node::depositFreq; 
 CModel * CEES_Node::ultimate_target;
+double CEES_Node::min_energy; 
+bool CEES_Node::if_tune_energy_level;
 
 CEES_Node::CEES_Node(int iEnergyLevel)
 {
 	id = iEnergyLevel; 
 	nSamplesGenerated = 0; 
+
 	nMHSamplesGenerated_Recent = 0; 
 	nMHSamplesAccepted_Recent = 0; 
 	MH_On = false;
@@ -38,6 +41,7 @@ CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel *transition, CEES_Node *
 {
 	id = iEnergyLevel; 
 	nSamplesGenerated = 0; 
+
 	nMHSamplesGenerated_Recent = 0; 
 	nMHSamplesAccepted_Recent = 0; 
 	MH_On = false; 
@@ -97,6 +101,9 @@ void CEES_Node::Initialize(CModel * model, const gsl_rng *r)
 	energy_current = OriginalEnergy(x_current, dataDim); 
 	ring_index_current = GetRingIndex(energy_current); 
 	nSamplesGenerated ++;
+
+	// for tuning energy levels
+	UpdateMinEnergy(energy_current); 
 }
 
 void CEES_Node::Initialize(const double *x, int x_d)
@@ -105,6 +112,8 @@ void CEES_Node::Initialize(const double *x, int x_d)
 	energy_current = OriginalEnergy(x_current, dataDim); 
 	ring_index_current = GetRingIndex(energy_current); 
 	nSamplesGenerated++;
+	
+	UpdateMinEnergy(energy_current);
 }
 
 double CEES_Node::ProbabilityRatio(const double *x, const double *y, int dim)
@@ -275,6 +284,8 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 			memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
 			energy_current = OriginalEnergy(x_new, dataDim); 
 			ring_index_current = GetRingIndex(energy_current); 
+
+			UpdateMinEnergy(energy_current); 
 		}
 		if (MH_On)
 			nMHSamplesGenerated_Recent ++; 
@@ -301,6 +312,7 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 				memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
 				energy_current = OriginalEnergy(x_new, dataDim); 
 				ring_index_current = GetRingIndex(energy_current); 
+				UpdateMinEnergy(energy_current); 
 			}
 			if (MH_On)
                         	nMHSamplesGenerated_Recent ++; 
@@ -362,3 +374,64 @@ void CEES_Node::MH_Tracking_End()
 	MH_On = false; 
 }
 
+void CEES_Node::InitializeMinEnergy()
+{
+	min_energy = H[0]; 
+	if_tune_energy_level = false; 	
+}
+
+void CEES_Node::UpdateMinEnergy(double _new_energy)
+{
+	if (_new_energy < min_energy) 
+	{
+		min_energy = _new_energy; 
+		if (min_energy < H[0])
+			if_tune_energy_level = true; 
+	}
+}
+
+void CEES_Node::AdjustLocalTarget()
+{
+	delete target; 
+	target = new CBoundedModel(H[id], T[id], ultimate_target); 
+}
+
+void CEES_Node::AssignSamplesGeneratedSoFar(CStorageHead &storage)
+{
+	// current sample
+	ring_index_current = GetRingIndex(energy_current); 		
+	vector <int> old_ring_size = ring_size; 
+	ring_size.clear(); 
+	ring_size[ring_index_current] ++; 
+
+	// samples from storage
+	int storage_bin_id, new_storage_bin_id; 
+	vector <CSampleIDWeight> samples; 
+	double energy; 
+	int ring_index, id;
+	double  weight; 
+	for (int bin_id = 0; bin_id < K; bin_id ++)
+	{
+		storage_bin_id = BinID(bin_id); 
+		samples=storage.RetrieveSamplesSequentially(true, storage_bin_id); 
+		while (!samples.empty())
+		{
+			for (int i=0; i<(int)(samples.size()); i++)
+			{
+				samples[i].GetData(x_new, dataDim, id, weight);
+				energy = OriginalEnergy(x_new, dataDim); 
+				ring_index = GetRingIndex(energy); 
+				new_storage_bin_id = BinID(ring_index); 
+				storage.DepositSample(true, new_storage_bin_id, x_new, dataDim, id, weight); 	
+				ring_size[ring_index] ++;
+			}
+			samples=storage.RetrieveSamplesSequentially(true, storage_bin_id);
+		}
+	}
+	for (int bin_id =0; bin_id <K; bin_id ++)
+	{
+		storage_bin_id = BinID(bin_id); 
+		storage.Consolidate(storage_bin_id); 
+	}
+	storage.ClearTemporaryBin();
+}

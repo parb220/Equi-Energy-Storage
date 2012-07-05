@@ -33,6 +33,7 @@
 using namespace std;
 
 bool Configure_GaussianMixtureModel_File(CMixtureModel &, const string); 
+void TuneEnergyLevels_UpdateStorage(CEES_Node *, CStorageHead &);
 
 int main()
 {
@@ -86,7 +87,8 @@ int main()
 		cout << "Error in setting energy levels." << endl; 
 		exit(-1); 
 	}
-
+	CEES_Node::InitializeMinEnergy(); 			// Initialize min_energy and if_tune_energy_level for tune_energy_level in the future; 
+	
 	/*
  	Set temperatures for all levels, either according to the energy levels so that (H[i+1]-H[i])/T[i] is a constant, or use SetTemperatures(double*, int)
  	*/
@@ -137,19 +139,26 @@ int main()
 	/*
  	Burn-in and simulation
  	*/
-	for (int n=0; n<(CEES_Node::GetEnergyLevelNumber()-1)*CEES_Node::GetPeriodBuildInitialRing()+SIMULATION_LENGTH; n++)
+	int n=0; 
+	while (n<(CEES_Node::GetEnergyLevelNumber()-1)*CEES_Node::GetPeriodBuildInitialRing()+SIMULATION_LENGTH)
 	{
+		// Tuning MH step sizes; 
 		if ( (n% MH_TRACKING_FREQUENCY) == 0)
 		{
 			for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
 				simulator_node[i].MH_Tracking_Start(MH_TRACKING_LENGTH, 0.22, 0.32); 
 		}
+		// Tuning Energy level every ENERGY_LEVEL_TUNING_FREQUENCY and for at most ENERGY_LEVEL_TUNING_MAX_TIME
+		if (CEES_Node::IfTuneEnergyLevel() && (n% ENERGY_LEVEL_TUNING_FREQUENCY) == 0 && (n/ENERGY_LEVEL_TUNING_FREQUENCY) <= ENERGY_LEVEL_TUNING_MAX_TIME)
+			TuneEnergyLevels_UpdateStorage(simulator_node, storage); 
+		 
 		simulator_node[CEES_Node::GetEnergyLevelNumber()-1].draw(r, storage); 
 		for (int i=CEES_Node::GetEnergyLevelNumber()-2; i>=0; i--)
 		{
 			if (simulator_node[i+1].EnergyRingBuildDone())
 				simulator_node[i].draw(r, storage); 
 		}
+		n++; 
 	}
 
 	storage.finalize(); 		// save to hard-disk of those unsaved data

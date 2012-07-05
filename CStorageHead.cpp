@@ -90,3 +90,69 @@ void CStorageHead::finalize()
 	for (int i=0; i<number_bins; i++)
 		bin[i].finalize(); 
 }
+
+vector <CSampleIDWeight> CStorageHead::RetrieveSamplesSequentially(bool if_clear_old_bin, int bin_id)
+{
+	vector <CSampleIDWeight> samples = bin[bin_id].RetrieveSamplesSequentially(if_clear_old_bin); 
+	return samples; 
+}
+
+int CStorageHead::DepositSample(bool if_new_bin, int bin_id, const double *x, int dX, int _id, double _weight)
+{
+	/* First number_bins: old
+ 	* Last number_bins: new */ 
+	if (if_new_bin && (int)(bin.size()) < 2*number_bins)
+	{
+		bin.resize(2*number_bins); 
+		for (int i=number_bins; i<(int)(bin.size()); i++)
+		{
+			bin[i].SetBinID(i); 
+			bin[i].SetCapacity_Put(bin[i-number_bins].GetCapacity_Put()); 
+			bin[i].SetCapacity_Get(bin[i-number_bins].GetCapacity_Get()); 
+			bin[i].SetFileNamePrefix(bin[i-number_bins].GetFileNamePrefix()); 
+		}
+	}
+	if (if_new_bin)
+		return bin[bin_id+number_bins].DepositSample(x, dX, _id, _weight); 
+	else
+		return bin[bin_id].DepositSample(x, dX, _id, _weight); 
+} 
+
+int CStorageHead::DepositSample(bool if_new_bin, int bin_id, const CSampleIDWeight &sample)
+{
+	/* First number_bins: old 
+ 	*  Last number_bins: new  */
+	if (if_new_bin && (int)(bin.size()) < 2*number_bins) 
+	{
+		bin.resize(2*number_bins); 
+		for (int i=number_bins; i<(int)(bin.size()); i++)
+		{
+			bin[i].SetBinID(i); 
+			bin[i].SetCapacity_Put(bin[i-number_bins].GetCapacity_Put()); 
+			bin[i].SetCapacity_Get(bin[i-number_bins].GetCapacity_Get()); 
+			bin[i].SetFileNamePrefix(bin[i-number_bins].GetFileNamePrefix()); 
+		}
+	}
+	if (if_new_bin) 
+		return bin[bin_id+number_bins].DepositSample(sample); 
+	else 
+		return bin[bin_id].DepositSample(sample); 
+}
+
+void CStorageHead::Consolidate(int bin_id)
+{
+	if ((int)(bin.size()) == 2*number_bins)
+	{ 
+		int old_bin_id = bin_id; 
+		int new_bin_id = bin_id + number_bins;
+		bin[new_bin_id].ChangeFileName(old_bin_id); 
+		bin[old_bin_id] = bin[new_bin_id]; 
+		bin[old_bin_id].SetBinID(old_bin_id); 
+	}
+}
+
+void CStorageHead::ClearTemporaryBin()
+{
+	if ((int)(bin.size()) > number_bins)
+		bin.erase(bin.begin()+number_bins, bin.end()); 
+}
