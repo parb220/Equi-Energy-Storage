@@ -97,24 +97,28 @@ vector <CSampleIDWeight> CStorageHead::RetrieveSamplesSequentially(bool if_clear
 	return samples; 
 }
 
+void CStorageHead::CreateTemporaryBin()
+{
+	if ((int)(bin.size()) < 2*number_bins)
+	{
+	 	int old_size = (int)(bin.size());
+                bin.resize(2*number_bins);
+                for (int i=old_size; i<(int)(bin.size()); i++)
+                {
+                        bin[i].SetBinID(i);
+                        bin[i].SetCapacity_Put(bin[i-number_bins].GetCapacity_Put());
+                        bin[i].SetCapacity_Get(bin[i-number_bins].GetCapacity_Get());
+                        bin[i].SetFileNamePrefix(bin[i-number_bins].GetFileNamePrefix());
+                        bin[i].ClearDepositDrawHistory();
+                }
+	}
+}
+
+
 int CStorageHead::DepositSample(bool if_new_bin, int bin_id, const double *x, int dX, int _id, double _weight)
 {
 	/* First number_bins: old
  	* Last number_bins: new */ 
-        if (if_new_bin && (int)(bin.size()) < 2*number_bins)
-        {
-                int old_size = (int)(bin.size());
-                bin.resize(2*number_bins);
-                for (int i=old_size; i<(int)(bin.size()); i++)
-                {
-                        bin[i].SetBinID(i);                  
-                        bin[i].SetCapacity_Put(bin[i-number_bins].GetCapacity_Put());  
-                        bin[i].SetCapacity_Get(bin[i-number_bins].GetCapacity_Get());         
-                        bin[i].SetFileNamePrefix(bin[i-number_bins].GetFileNamePrefix());  
-                        bin[i].ClearDepositDrawHistory();         
-                }
-        }       
-		
 	
 	if (if_new_bin)
 		return bin[bin_id+number_bins].DepositSample(x, dX, _id, _weight); 
@@ -126,19 +130,6 @@ int CStorageHead::DepositSample(bool if_new_bin, int bin_id, const CSampleIDWeig
 {
 	/* First number_bins: old 
  	*  others: new  */
-	if (if_new_bin && (int)(bin.size()) < 2*number_bins) 
-	{
-		int old_size = (int)(bin.size()); 
-		bin.resize(2*number_bins);  
-		for (int i=old_size; i<(int)(bin.size()); i++)
-		{
-			bin[i].SetBinID(i); 
-			bin[i].SetCapacity_Put(bin[i-number_bins].GetCapacity_Put()); 
-			bin[i].SetCapacity_Get(bin[i-number_bins].GetCapacity_Get()); 
-			bin[i].SetFileNamePrefix(bin[i-number_bins].GetFileNamePrefix()); 
-			bin[i].ClearDepositDrawHistory(); 
-		}
-	}
 	if (if_new_bin)	
 		return bin[bin_id+number_bins].DepositSample(sample); 
 	else 
