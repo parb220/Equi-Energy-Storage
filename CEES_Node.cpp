@@ -433,5 +433,4 @@ void CEES_Node::AssignSamplesGeneratedSoFar(CStorageHead &storage)
 		storage_bin_id = BinID(bin_id); 
 		storage.Consolidate(storage_bin_id); 
 	}
-	storage.ClearTemporaryBin();
 }
