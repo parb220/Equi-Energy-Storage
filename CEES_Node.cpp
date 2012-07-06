@@ -401,7 +401,7 @@ void CEES_Node::AssignSamplesGeneratedSoFar(CStorageHead &storage)
 	// current sample
 	ring_index_current = GetRingIndex(energy_current); 		
 	vector <int> old_ring_size = ring_size; 
-	ring_size.clear(); 
+	ring_size = vector <int> (ring_size.size(), 0);  
 	ring_size[ring_index_current] ++; 
 
 	// samples from storage

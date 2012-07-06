@@ -101,17 +101,21 @@ int CStorageHead::DepositSample(bool if_new_bin, int bin_id, const double *x, in
 {
 	/* First number_bins: old
  	* Last number_bins: new */ 
-	if (if_new_bin && (int)(bin.size()) < 2*number_bins)
-	{
-		bin.resize(2*number_bins); 
-		for (int i=number_bins; i<(int)(bin.size()); i++)
-		{
-			bin[i].SetBinID(i); 
-			bin[i].SetCapacity_Put(bin[i-number_bins].GetCapacity_Put()); 
-			bin[i].SetCapacity_Get(bin[i-number_bins].GetCapacity_Get()); 
-			bin[i].SetFileNamePrefix(bin[i-number_bins].GetFileNamePrefix()); 
-		}
-	}
+        if (if_new_bin && (int)(bin.size()) < 2*number_bins)
+        {
+                int old_size = (int)(bin.size());
+                bin.resize(2*number_bins);
+                for (int i=old_size; i<(int)(bin.size()); i++)
+                {
+                        bin[i].SetBinID(i);                  
+                        bin[i].SetCapacity_Put(bin[i-number_bins].GetCapacity_Put());  
+                        bin[i].SetCapacity_Get(bin[i-number_bins].GetCapacity_Get());         
+                        bin[i].SetFileNamePrefix(bin[i-number_bins].GetFileNamePrefix());  
+                        bin[i].ClearDepositDrawHistory();         
+                }
+        }       
+		
+	
 	if (if_new_bin)
 		return bin[bin_id+number_bins].DepositSample(x, dX, _id, _weight); 
 	else
@@ -121,19 +125,21 @@ int CStorageHead::DepositSample(bool if_new_bin, int bin_id, const double *x, in
 int CStorageHead::DepositSample(bool if_new_bin, int bin_id, const CSampleIDWeight &sample)
 {
 	/* First number_bins: old 
- 	*  Last number_bins: new  */
+ 	*  others: new  */
 	if (if_new_bin && (int)(bin.size()) < 2*number_bins) 
 	{
-		bin.resize(2*number_bins); 
-		for (int i=number_bins; i<(int)(bin.size()); i++)
+		int old_size = (int)(bin.size()); 
+		bin.resize(2*number_bins);  
+		for (int i=old_size; i<(int)(bin.size()); i++)
 		{
 			bin[i].SetBinID(i); 
 			bin[i].SetCapacity_Put(bin[i-number_bins].GetCapacity_Put()); 
 			bin[i].SetCapacity_Get(bin[i-number_bins].GetCapacity_Get()); 
 			bin[i].SetFileNamePrefix(bin[i-number_bins].GetFileNamePrefix()); 
+			bin[i].ClearDepositDrawHistory(); 
 		}
 	}
-	if (if_new_bin) 
+	if (if_new_bin)	
 		return bin[bin_id+number_bins].DepositSample(sample); 
 	else 
 		return bin[bin_id].DepositSample(sample); 
@@ -141,14 +147,16 @@ int CStorageHead::DepositSample(bool if_new_bin, int bin_id, const CSampleIDWeig
 
 void CStorageHead::Consolidate(int bin_id)
 {
-	if ((int)(bin.size()) == 2*number_bins)
-	{ 
-		int old_bin_id = bin_id; 
-		int new_bin_id = bin_id + number_bins;
+	int old_bin_id = bin_id; 
+	int new_bin_id = bin_id + number_bins;
+	if ((int)(bin.size()) > new_bin_id && bin[new_bin_id].GetNumberSamplesGeneratedByFar())
+	{
 		bin[new_bin_id].ChangeFileName(old_bin_id); 
 		bin[old_bin_id] = bin[new_bin_id]; 
 		bin[old_bin_id].SetBinID(old_bin_id); 
 	}
+	else 
+		bin[old_bin_id].ClearDepositDrawHistory(); 
 }
 
 void CStorageHead::ClearTemporaryBin()

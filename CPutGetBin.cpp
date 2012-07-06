@@ -15,7 +15,7 @@ CPutGetBin::CPutGetBin(int _id, int n_TotalSamples, int _capacityPut, int _capac
 	dataPut.resize(capacityPut); 	
 	
 	capacityGet = _capacityGet; 
-	nGetUsed = 0;
+	nGetUsed = capacityGet;
  	dataGet.resize(capacityGet); 
 
 	filename_prefix = _grandPrefix; 
@@ -89,36 +89,42 @@ CSampleIDWeight CPutGetBin::DrawSample(const gsl_rng *r)
 	/* when data have not been dumped to files
  	will directly get a data from dataPut
  	*/
+	{
 		index = gsl_rng_uniform_int(r, nSamplesGeneratedByFar); 
+		return dataPut[index]; 
+	}
 	else 
 	{
-		index = gsl_rng_uniform_int(r, capacityGet); 
-		nGetUsed ++; 
 		if (nGetUsed == capacityGet)
 		{
 			Fetch(r);
 			nGetUsed = 0; 
 		}
+		index = gsl_rng_uniform_int(r, capacityGet); 
+		nGetUsed ++; 
+		return dataGet[index]; 
 	}
-	return dataGet[index]; 
 }
 
 void CPutGetBin::DrawSample(double *x, int dim, int &id, double &weight, const gsl_rng *r)
 {
 	int index; 
 	if (GetNumberDataFile() <= 0)
+	{
 		index = gsl_rng_uniform_int(r, nSamplesGeneratedByFar);
+		dataPut[index].GetData(x,dim,id, weight); 
+	}
 	else 
 	{
-		index = gsl_rng_uniform_int(r, capacityGet);  
-		nGetUsed ++; 
 		if (nGetUsed == capacityGet)
 		{
 			Fetch(r);
 			nGetUsed = 0; 
 		} 
+		index = gsl_rng_uniform_int(r, capacityGet);  
+		nGetUsed ++; 
+		dataGet[index].GetData(x, dim, id, weight); 
 	}
-	dataGet[index].GetData(x, dim, id, weight); 
 }
 
 bool CPutGetBin::Fetch(const gsl_rng *r)
@@ -245,4 +251,9 @@ void CPutGetBin::ChangeFileName(int new_id)
 	}
 }
 
-
+void CPutGetBin::ClearDepositDrawHistory()
+{
+	nSamplesGeneratedByFar = 0; 
+ 	nGetUsed = capacityGet;
+	nPutUsed = 0; 
+}

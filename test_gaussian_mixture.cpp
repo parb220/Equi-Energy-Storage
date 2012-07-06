@@ -140,18 +140,21 @@ int main()
  	Burn-in and simulation
  	*/
 	int n=0; 
+	int nEnergyLevelTuning = 0; 
 	while (n<(CEES_Node::GetEnergyLevelNumber()-1)*CEES_Node::GetPeriodBuildInitialRing()+SIMULATION_LENGTH)
 	{
 		// Tuning MH step sizes; 
-		if ( (n% MH_TRACKING_FREQUENCY) == 0)
+		if ( (IF_MH_TRACKING && n% MH_TRACKING_FREQUENCY) == 0)
 		{
 			for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
 				simulator_node[i].MH_Tracking_Start(MH_TRACKING_LENGTH, 0.22, 0.32); 
 		}
 		// Tuning Energy level every ENERGY_LEVEL_TUNING_FREQUENCY and for at most ENERGY_LEVEL_TUNING_MAX_TIME
-		if (CEES_Node::IfTuneEnergyLevel() && (n% ENERGY_LEVEL_TUNING_FREQUENCY) == 0 && (n/ENERGY_LEVEL_TUNING_FREQUENCY) <= ENERGY_LEVEL_TUNING_MAX_TIME)
+		if (IF_ENERGY_LEVEL_TUNING && CEES_Node::IfTuneEnergyLevel() && (n% ENERGY_LEVEL_TUNING_FREQUENCY) == 0 && nEnergyLevelTuning <= ENERGY_LEVEL_TUNING_MAX_TIME)
+		{
 			TuneEnergyLevels_UpdateStorage(simulator_node, storage); 
-		 
+			nEnergyLevelTuning ++; 
+		} 
 		simulator_node[CEES_Node::GetEnergyLevelNumber()-1].draw(r, storage); 
 		for (int i=CEES_Node::GetEnergyLevelNumber()-2; i>=0; i--)
 		{
