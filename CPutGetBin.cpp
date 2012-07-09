@@ -82,16 +82,19 @@ bool CPutGetBin::Dump(int n)
 	return true; 
 }
 
-CSampleIDWeight CPutGetBin::DrawSample(const gsl_rng *r)
+bool CPutGetBin::DrawSample(const gsl_rng *r, CSampleIDWeight &sample)
 {
 	int index; 
+	if (nSamplesGeneratedByFar <= 0)
+		return false; 
 	if (GetNumberDataFile() <= 0) 
 	/* when data have not been dumped to files
  	will directly get a data from dataPut
  	*/
 	{
 		index = gsl_rng_uniform_int(r, nSamplesGeneratedByFar); 
-		return dataPut[index]; 
+		sample = dataPut[index]; 
+		return true; 
 	}
 	else 
 	{
@@ -102,17 +105,21 @@ CSampleIDWeight CPutGetBin::DrawSample(const gsl_rng *r)
 		}
 		index = gsl_rng_uniform_int(r, capacityGet); 
 		nGetUsed ++; 
-		return dataGet[index]; 
+		sample = dataGet[index]; 
+		return true; 
 	}
 }
 
-void CPutGetBin::DrawSample(double *x, int dim, int &id, double &weight, const gsl_rng *r)
+bool CPutGetBin::DrawSample(double *x, int dim, int &id, double &weight, const gsl_rng *r)
 {
 	int index; 
+	if (nSamplesGeneratedByFar <= 0)
+		return false; 
 	if (GetNumberDataFile() <= 0)
 	{
 		index = gsl_rng_uniform_int(r, nSamplesGeneratedByFar);
 		dataPut[index].GetData(x,dim,id, weight); 
+		return true; 
 	}
 	else 
 	{
@@ -124,6 +131,7 @@ void CPutGetBin::DrawSample(double *x, int dim, int &id, double &weight, const g
 		index = gsl_rng_uniform_int(r, capacityGet);  
 		nGetUsed ++; 
 		dataGet[index].GetData(x, dim, id, weight); 
+		return true; 
 	}
 }
 

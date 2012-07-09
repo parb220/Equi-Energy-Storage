@@ -251,6 +251,18 @@ bool CEES_Node::SetTemperatures_EnergyLevels(double T0, double TK_1, double c)
 	return true;
 }
 
+bool CEES_Node::SetTemperatures_EnergyLevels(double T0, double TK_1)
+{
+	T = vector<double > (K); 
+	T[K-1] = TK_1; 
+	T[0] = T0; 
+	double gamma = (T[K-1]-T[0])/(H[K-1]-H[0]);
+	for (int i=1; i<K-1; i++)
+		T[i] = gamma * (H[i]-H[0]); 
+	return true;  
+	
+}
+
 int CEES_Node::GetRingIndex(double e) const
 {
 	for (int j=1; j<K; j++)
@@ -295,9 +307,8 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 	else	// equi-energy draw with prob. of pee
 	{
 		double uniform_draw = gsl_rng_uniform(r); 
-		if (uniform_draw <= pee )
-		{
-			storage.DrawSample(bin_id_next_level, x_new, dataDim, x_id, x_weight, r); 
+		if (uniform_draw <= pee && storage.DrawSample(bin_id_next_level, x_new, dataDim, x_id, x_weight, r))
+		{ 
 			double ratio=ProbabilityRatio(x_new, x_current, dataDim); 
 			ratio = ratio * next_level->ProbabilityRatio(x_current, x_new, dataDim);  
 			double another_uniform_draw = gsl_rng_uniform(r); 

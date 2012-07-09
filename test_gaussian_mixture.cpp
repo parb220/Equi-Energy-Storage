@@ -90,9 +90,10 @@ int main()
 	CEES_Node::InitializeMinEnergy(); 			// Initialize min_energy and if_tune_energy_level for tune_energy_level in the future; 
 	
 	/*
- 	Set temperatures for all levels, either according to the energy levels so that (H[i+1]-H[i])/T[i] is a constant, or use SetTemperatures(double*, int)
+ 	Set temperatures for all levels, either according to the energy levels, or use SetTemperatures(double*, int)
  	*/
-	if (!CEES_Node::SetTemperatures_EnergyLevels(T0, TK_1, C) )
+	// if (!CEES_Node::SetTemperatures_EnergyLevels(T0, TK_1, C) ) // (H[i+1]-H[i])/T[i] is a constant;
+	if (!CEES_Node::SetTemperatures_EnergyLevels(T0, TK_1) ) // (H[i+1]-H[i])/(T[i+1]-T[i]) is a constant
 	{
 		cout << "Error in setting temperature levels." << endl; 
 		exit(-1);

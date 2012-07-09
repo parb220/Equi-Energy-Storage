@@ -36,12 +36,12 @@ int CStorageHead::DepositSample(int _bin_id, const double *x, int x_d, int x_ID,
 	return bin[_bin_id].DepositSample(x, x_d, x_ID, x_weight); 
 } 
 
-CSampleIDWeight CStorageHead::DrawSample(int _bin_id, const gsl_rng *r)
+bool CStorageHead::DrawSample(int _bin_id, const gsl_rng *r, CSampleIDWeight &sample)
 {
-	return bin[_bin_id].DrawSample(r); 	
+	return bin[_bin_id].DrawSample(r, sample); 	
 }
 
-void CStorageHead::DrawSample(int _bin_id, double *x, int x_d, int &x_ID, double &x_weight, const gsl_rng *r)
+bool CStorageHead::DrawSample(int _bin_id, double *x, int x_d, int &x_ID, double &x_weight, const gsl_rng *r)
 {
 	return bin[_bin_id].DrawSample(x, x_d, x_ID, x_weight, r); 
 }
