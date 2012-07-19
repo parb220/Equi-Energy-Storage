@@ -121,6 +121,11 @@ double CEES_Node::ProbabilityRatio(const double *x, const double *y, int dim)
 	return target->probability(x, dim)/target->probability(y, dim); 
 }
 
+double CEES_Node::LogProbRatio(const double *x, const double *y, int dim)
+{
+	return target->log_prob(x, dim)-target->log_prob(y, dim); 
+}
+
 void CEES_Node::SetDataDimension(int d)
 {
 	dataDim = d; 
@@ -309,10 +314,13 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 		double uniform_draw = gsl_rng_uniform(r); 
 		if (uniform_draw <= pee && storage.DrawSample(bin_id_next_level, x_new, dataDim, x_id, x_weight, r))
 		{ 
-			double ratio=ProbabilityRatio(x_new, x_current, dataDim); 
-			ratio = ratio * next_level->ProbabilityRatio(x_current, x_new, dataDim);  
+			/*double ratio=ProbabilityRatio(x_new, x_current, dataDim); 
+			ratio = ratio * next_level->ProbabilityRatio(x_current, x_new, dataDim);  */
+			// need to use LogProbRatio
+			double ratio = LogProbRatio(x_new, x_current, dataDim); 
+			ratio += next_level->LogProbRatio(x_current, x_new, dataDim); 
 			double another_uniform_draw = gsl_rng_uniform(r); 
-			if (another_uniform_draw <= ratio)
+			if (log(another_uniform_draw) <= ratio)
 				memcpy(x_current, x_new, sizeof(x_new)*dataDim);
 		} 
 		else	// MH draw 
