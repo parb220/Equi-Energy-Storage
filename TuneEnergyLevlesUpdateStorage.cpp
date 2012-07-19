@@ -17,7 +17,8 @@ void TuneEnergyLevels_UpdateStorage(CEES_Node *simulator, CStorageHead &storage)
                 exit(-1);
         }
 
-	if (!CEES_Node::SetTemperatures_EnergyLevels(T0, TK_1, C) )
+	// if (!CEES_Node::SetTemperatures_EnergyLevels(T0, TK_1, C) )
+	if (!CEES_Node::SetTemperatures_EnergyLevels(T0, TK_1) )
         {
                 cout << "Error in setting temperature levels." << endl;
                 exit(-1);

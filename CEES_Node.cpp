@@ -294,7 +294,7 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 		if (new_sample_flag)
 		{
 			memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
-			energy_current = OriginalEnergy(x_new, dataDim); 
+			energy_current = OriginalEnergy(x_current, dataDim); 
 			ring_index_current = GetRingIndex(energy_current); 
 
 			UpdateMinEnergy(energy_current); 
@@ -321,7 +321,7 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 			if (new_sample_flag)
 			{
 				memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
-				energy_current = OriginalEnergy(x_new, dataDim); 
+				energy_current = OriginalEnergy(x_current, dataDim); 
 				ring_index_current = GetRingIndex(energy_current); 
 				UpdateMinEnergy(energy_current); 
 			}
