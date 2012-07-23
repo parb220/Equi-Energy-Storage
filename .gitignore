@@ -1,0 +1,4 @@
+*.o
+binary2text
+test_gaussian_mixture
+

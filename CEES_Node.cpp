@@ -116,10 +116,6 @@ void CEES_Node::Initialize(const double *x, int x_d)
 	UpdateMinEnergy(energy_current);
 }
 
-double CEES_Node::ProbabilityRatio(const double *x, const double *y, int dim)
-{
-	return target->probability(x, dim)/target->probability(y, dim); 
-}
 
 double CEES_Node::LogProbRatio(const double *x, const double *y, int dim)
 {
@@ -216,7 +212,7 @@ bool CEES_Node::SetEnergyLevels_GeometricProgression(double H0, double HK_1)
         bool continue_flag = true;
         for (int i=0; i<K-1 && continue_flag; i++)
         {
-                if (Z[2*i]>0 && abs(Z[2*i+1]) <= EPSILON)
+                if (Z[2*i]>0 && abs(Z[2*i+1]) <= DBL_EPSILON)
                 {
                         gamma = Z[2*i];
                         continue_flag = false;
@@ -286,7 +282,7 @@ bool CEES_Node::EnergyRingBuildDone() const
 		return false;
 }
 
-void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
+void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage, int mMH )
 {
 	int bin_id_next_level, bin_id, x_id; 
 	bool new_sample_flag;
@@ -295,7 +291,7 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 		bin_id_next_level = next_level->BinID(ring_index_current); 
 	if (next_level == NULL || storage.empty(bin_id_next_level)) // MH draw
 	{
-		target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag); 
+		target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag, mMH); 
 		if (new_sample_flag)
 		{
 			memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
@@ -325,7 +321,7 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage )
 		} 
 		else	// MH draw 
 		{
-			target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag); 
+			target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag, mMH); 
 			if (new_sample_flag)
 			{
 				memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
@@ -386,9 +382,9 @@ void CEES_Node::MH_Tracking_End()
 {
 	double accept_ratio = (double)(nMHSamplesAccepted_Recent)/nMHSamplesGenerated_Recent; 
 	if (accept_ratio < MH_lower_target_prob)	// should decrease stepsize
-		proposal->step_size_tune(accept_ratio/MH_lower_target_prob); 
+		proposal->step_size_tune(accept_ratio/MH_lower_target_prob < 0.5 ? 0.5 : accept_ratio/MH_lower_target_prob); 
 	else if (accept_ratio > MH_upper_target_prob ) 	// should increase stepsize
-		proposal->step_size_tune(accept_ratio/MH_upper_target_prob); 
+		proposal->step_size_tune(accept_ratio/MH_upper_target_prob > 2 ? 2: accept_ratio/MH_upper_target_prob); 
 
 	MH_On = false; 
 }

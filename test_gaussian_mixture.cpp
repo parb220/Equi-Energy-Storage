@@ -17,7 +17,6 @@
 #include <ctime>
 #include <cmath>
 #include <gsl/gsl_rng.h>
-#include "constant.h"
 #include "equi_energy_setup_constant.h"
 #include "CMixtureModel.h"
 #include "CSimpleGaussianModel.h"
@@ -156,11 +155,11 @@ int main()
 			TuneEnergyLevels_UpdateStorage(simulator_node, storage); 
 			nEnergyLevelTuning ++; 
 		} 
-		simulator_node[CEES_Node::GetEnergyLevelNumber()-1].draw(r, storage); 
+		simulator_node[CEES_Node::GetEnergyLevelNumber()-1].draw(r, storage, MULTIPLE_TRY_MH); 
 		for (int i=CEES_Node::GetEnergyLevelNumber()-2; i>=0; i--)
 		{
 			if (simulator_node[i+1].EnergyRingBuildDone())
-				simulator_node[i].draw(r, storage); 
+				simulator_node[i].draw(r, storage, MULTIPLE_TRY_MH); 
 		}
 		n++; 
 	}
