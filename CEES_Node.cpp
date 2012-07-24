@@ -95,9 +95,22 @@ bool CEES_Node::BurnInDone()
 	return false;
 }
 
+void CEES_Node::Initialize(const gsl_rng *r)
+{
+	target->draw(x_current, dataDim, r); 
+	energy_current = OriginalEnergy(x_current, dataDim); 
+	ring_index_current = GetRingIndex(energy_current); 
+	nSamplesGenerated ++; 
+	
+	UpdateMinEnergy(energy_current);
+}
+
 void CEES_Node::Initialize(CModel * model, const gsl_rng *r)
 {
-	model->draw(x_current, dataDim, r); 
+	if (model == NULL)
+		Initialize(r); 
+	else
+		model->draw(x_current, dataDim, r); 
 	energy_current = OriginalEnergy(x_current, dataDim); 
 	ring_index_current = GetRingIndex(energy_current); 
 	nSamplesGenerated ++;
@@ -349,7 +362,7 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage, int mMH )
 	nSamplesGenerated ++;
 }
 
-ofstream & summary(ofstream &of, const CEES_Node &simulator)
+ofstream & summary(ofstream &of, const CEES_Node *simulator)
 {
 	of << "Data Dimension:\t" << CEES_Node::dataDim << endl; 
 	of << "Number of Energy Levels:\t" << CEES_Node::K << endl; 
@@ -362,7 +375,6 @@ ofstream & summary(ofstream &of, const CEES_Node &simulator)
 		of << "\t" << CEES_Node::T[i]; 
 	of << endl; 
 	of << "Prob Equi-Jump:\t" << CEES_Node::pee << endl; 
-	of << "Burn-In:\t" << simulator.B << endl; 
 	of << "Build Initial Ring:\t" << CEES_Node::N << endl; 
 	of << "Deposit Frequency:\t" << CEES_Node::depositFreq << endl; 
 	return of;
@@ -382,9 +394,9 @@ void CEES_Node::MH_Tracking_End()
 {
 	double accept_ratio = (double)(nMHSamplesAccepted_Recent)/nMHSamplesGenerated_Recent; 
 	if (accept_ratio < MH_lower_target_prob)	// should decrease stepsize
-		proposal->step_size_tune(accept_ratio/MH_lower_target_prob < 0.5 ? 0.5 : accept_ratio/MH_lower_target_prob); 
+		proposal->step_size_tune(accept_ratio/MH_lower_target_prob < 0.5 ? 0.5*sqrt(T[id]) : accept_ratio/MH_lower_target_prob*sqrt(T[id])); 
 	else if (accept_ratio > MH_upper_target_prob ) 	// should increase stepsize
-		proposal->step_size_tune(accept_ratio/MH_upper_target_prob > 2 ? 2: accept_ratio/MH_upper_target_prob); 
+		proposal->step_size_tune(accept_ratio/MH_upper_target_prob > 2 ? 2*sqrt(T[id]): accept_ratio/MH_upper_target_prob*sqrt(T[id])); 
 
 	MH_On = false; 
 }

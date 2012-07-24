@@ -18,7 +18,7 @@ close summaryFile;
 my @terms; 
 my ($get_marker, $put_marker, $number_bins, $data_dimension); 
 my ($number_levels, $prob_eejump, $burn_in, $initial_ring, $deposit_freq); 
-my (@energy, @temperature); 
+my (@energy, @temperature, @sigma); 
 my @bin; 
 foreach my $line (@lines)
 {
@@ -52,7 +52,13 @@ foreach my $line (@lines)
 			unshift @temperature, $terms[$#terms]; 
 			pop @terms; 
 		}
-	} else {
+	} elsif (index($line, "Step size") >= 0) {
+		foreach my $counter (1..$number_levels) {
+			unshift @sigma, $terms[$#terms]; 
+			pop @terms; 
+		}
+	} 
+	else {
 		$bin[$terms[0]]->{"number of samples"} = $terms[1]; 
 		$bin[$terms[0]]->{"number of files"} = $terms[2]; 
 	}

@@ -126,7 +126,7 @@ int main()
 		}
 		/* Transition_SimpleGaussian with sigma=0.25sqrt(T) used for each energy level as the proposal model */	
                 for (int j=0; j<CEES_Node::GetDataDimension(); j++)
-                        sigma[j] = 0.25 * sqrt(simulator_node[i].GetTemperature());
+                        sigma[j] = INITIAL_SIGMA * sqrt(simulator_node[i].GetTemperature());
                 simulator_node[i].SetProposal(new CTransitionModel_SimpleGaussian(CEES_Node::GetDataDimension(), sigma));
 		/*   Initialize       */
 		simulator_node[i].Initialize(initial_model, r); 
@@ -147,7 +147,7 @@ int main()
 		if ( (IF_MH_TRACKING && n% MH_TRACKING_FREQUENCY) == 0)
 		{
 			for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
-				simulator_node[i].MH_Tracking_Start(MH_TRACKING_LENGTH, 0.22, 0.32); 
+				simulator_node[i].MH_Tracking_Start(MH_TRACKING_LENGTH, MH_LOW_ACC, MH_HIGH_ACC); 
 		}
 		// Tuning Energy level every ENERGY_LEVEL_TUNING_FREQUENCY and for at most ENERGY_LEVEL_TUNING_MAX_TIME
 		if (IF_ENERGY_LEVEL_TUNING && CEES_Node::IfTuneEnergyLevel() && (n% ENERGY_LEVEL_TUNING_FREQUENCY) == 0 && nEnergyLevelTuning <= ENERGY_LEVEL_TUNING_MAX_TIME)
@@ -174,7 +174,16 @@ int main()
 		exit(-1); 
 	}
 	summary(oFile, storage); 
-	summary(oFile, simulator_node[CEES_Node::GetEnergyLevelNumber()-1]);   
+	summary(oFile, simulator_node);   
+	oFile << "Burn-In:" ;
+	for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
+		oFile << "\t" << simulator_node[i].GetBurnInPeriod(); 
+	oFile << endl; 
+	oFile << "Step size:";
+	for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
+		oFile << "\t" << simulator_node[i].GetProposal()->get_step_size(); 
+	oFile << endl; 
+
 	oFile.close(); 
 	
 	gsl_rng_free(r); 
