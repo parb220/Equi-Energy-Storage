@@ -18,16 +18,20 @@ CModel * CEES_Node::ultimate_target;
 double CEES_Node::min_energy; 
 bool CEES_Node::if_tune_energy_level;
 
+int CEES_Node::nBlock; 
+vector < int > CEES_Node::blockSize;
+
 CEES_Node::CEES_Node(int iEnergyLevel)
 {
 	id = iEnergyLevel; 
 	nSamplesGenerated = 0; 
 
 	nMHSamplesGenerated_Recent = 0; 
-	nMHSamplesAccepted_Recent = 0; 
+	nMHSamplesAccepted_Recent = vector<int>(nBlock, 0); 
 	MH_On = false;
 	
-	proposal = NULL; 
+	proposal = new CTransitionModel *[nBlock]; 
+	proposal[0] = NULL;  
 	next_level = NULL; 
 
 	x_current = new double[dataDim]; 
@@ -43,10 +47,11 @@ CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel *transition, CEES_Node *
 	nSamplesGenerated = 0; 
 
 	nMHSamplesGenerated_Recent = 0; 
-	nMHSamplesAccepted_Recent = 0; 
+	nMHSamplesAccepted_Recent = vector<int>(nBlock, 0); 
 	MH_On = false; 
 
-	proposal = transition;
+	proposal = new CTransitionModel *[nBlock]; 
+	proposal[0] = transition;
 	next_level = pNext;
 	
 	x_current = new double [dataDim]; 
@@ -54,6 +59,26 @@ CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel *transition, CEES_Node *
 
 	target = new CBoundedModel(H[id], T[id], ultimate_target); 
 	ring_size = vector< int> (K, 0);
+}
+CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel **transition, CEES_Node *pNext)
+{
+        id = iEnergyLevel;
+        nSamplesGenerated = 0;
+
+        nMHSamplesGenerated_Recent = 0;
+        nMHSamplesAccepted_Recent = vector<int>(nBlock, 0);
+        MH_On = false;
+
+	proposal = new CTransitionModel *[nBlock]; 
+	for (int iBlock =0; iBlock<nBlock; iBlock++)
+        	proposal[iBlock] = transition[iBlock];
+        next_level = pNext;
+
+        x_current = new double [dataDim];
+        x_new = new double [dataDim];
+
+        target = new CBoundedModel(H[id], T[id], ultimate_target);
+        ring_size = vector< int> (K, 0);
 }
 
 void CEES_Node::SetID_LocalTarget(int iEnergyLevel)
@@ -73,8 +98,9 @@ CEES_Node::~CEES_Node()
 	if (target != NULL)
 		delete target;
 
-	if (proposal != NULL)
-		delete proposal; 
+	for (int iBlock =0; iBlock <nBlock; iBlock++)
+		delete proposal[iBlock]; 
+	delete []proposal; 
 }
 
 int CEES_Node::BinID(double e) const
@@ -304,7 +330,7 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage, int mMH )
 		bin_id_next_level = next_level->BinID(ring_index_current); 
 	if (next_level == NULL || storage.empty(bin_id_next_level)) // MH draw
 	{
-		target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag, mMH); 
+		target->draw(proposal[0], x_new, dataDim, x_current, r, new_sample_flag, mMH); 
 		if (new_sample_flag)
 		{
 			memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
@@ -316,7 +342,7 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage, int mMH )
 		if (MH_On)
 			nMHSamplesGenerated_Recent ++; 
 		if (MH_On && new_sample_flag)
-			nMHSamplesAccepted_Recent ++; 
+			nMHSamplesAccepted_Recent[0] ++; 
 	}
 	else	// equi-energy draw with prob. of pee
 	{
@@ -334,7 +360,7 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage, int mMH )
 		} 
 		else	// MH draw 
 		{
-			target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag, mMH); 
+			target->draw(proposal[0], x_new, dataDim, x_current, r, new_sample_flag, mMH); 
 			if (new_sample_flag)
 			{
 				memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
@@ -345,7 +371,96 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage, int mMH )
 			if (MH_On)
                         	nMHSamplesGenerated_Recent ++; 
                 	if (MH_On && new_sample_flag)
-                        	nMHSamplesAccepted_Recent ++;
+                        	nMHSamplesAccepted_Recent[0] ++;
+		}
+	}
+
+	if (BurnInDone() && (nSamplesGenerated-B)%depositFreq==0)
+	{
+		bin_id = BinID(ring_index_current); 
+		x_id = nSamplesGenerated; 
+		x_weight = 1.0; 
+		storage.DepositSample(bin_id, x_current, dataDim, x_id, x_weight); 
+		ring_size[ring_index_current] ++;
+	}
+	if (MH_On && nMHSamplesGenerated_Recent >= MH_Tracking_Length)
+		MH_Tracking_End(); 
+	nSamplesGenerated ++;
+}
+
+void CEES_Node::draw_block(const gsl_rng *r, CStorageHead &storage)
+{
+	int bin_id_next_level, bin_id, x_id; 
+	vector <bool > new_sample_flag(nBlock, false); 
+	double overall_new_sample_flag; 
+	double x_weight; 
+	double logP; 
+	if (next_level != NULL)
+		bin_id_next_level = next_level->BinID(ring_index_current); 
+	if (next_level == NULL || storage.empty(bin_id_next_level)) 
+	{
+		logP = target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag, nBlock, blockSize); 
+		// start: check each block to see if it has been updated 
+		overall_new_sample_flag = false; 
+		for (int iBlock =0; iBlock <nBlock; iBlock ++)
+		{
+			if(new_sample_flag[iBlock])
+			{
+				overall_new_sample_flag = true; 
+				if (MH_On)
+					nMHSamplesAccepted_Recent[iBlock] ++;
+			}
+		}
+		if (overall_new_sample_flag)
+		{
+			memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
+			energy_current = OriginalEnergy(x_current, dataDim);
+			ring_index_current = GetRingIndex(energy_current); 
+
+			UpdateMinEnergy(energy_current); 
+		}
+		// end: check each block to see if it has been updated
+		if (MH_On)
+			nMHSamplesGenerated_Recent ++; 
+	}
+	else	// equi-energy draw with prob. of pee
+	{
+		double uniform_draw = gsl_rng_uniform(r); 
+		if (uniform_draw <= pee && storage.DrawSample(bin_id_next_level, x_new, dataDim, x_id, x_weight, r))
+		{ 
+			/*double ratio=ProbabilityRatio(x_new, x_current, dataDim); 
+			ratio = ratio * next_level->ProbabilityRatio(x_current, x_new, dataDim);  */
+			// need to use LogProbRatio
+			double ratio = LogProbRatio(x_new, x_current, dataDim); 
+			ratio += next_level->LogProbRatio(x_current, x_new, dataDim); 
+			double another_uniform_draw = gsl_rng_uniform(r); 
+			if (log(another_uniform_draw) <= ratio)
+				memcpy(x_current, x_new, sizeof(x_new)*dataDim);
+		} 
+		else	// Block MH
+		{
+			target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag, nBlock, blockSize); 
+			overall_new_sample_flag = false;
+                	for (int iBlock =0; iBlock <nBlock; iBlock ++)
+                	{
+                        	if(new_sample_flag[iBlock])
+                        	{
+                                	overall_new_sample_flag = true;
+                                	if (MH_On)
+                                        	nMHSamplesAccepted_Recent[iBlock] ++;
+                        	}
+                	}
+                	if (overall_new_sample_flag)
+                	{
+                        	memcpy(x_current, x_new, sizeof(x_new)*dataDim);
+                        	energy_current = OriginalEnergy(x_current, dataDim);
+                        	ring_index_current = GetRingIndex(energy_current);
+
+                        	UpdateMinEnergy(energy_current);
+                	}
+
+			if (MH_On)
+                        	nMHSamplesGenerated_Recent ++; 
 		}
 	}
 
@@ -384,7 +499,7 @@ void CEES_Node::MH_Tracking_Start(int trackingL, double lp, double up)
 {
 	MH_On = true; 
 	nMHSamplesGenerated_Recent = 0; 
-	nMHSamplesAccepted_Recent = 0; 
+	nMHSamplesAccepted_Recent = vector<int>(nBlock, 0);   
 	MH_Tracking_Length = trackingL; 
 	MH_lower_target_prob = lp; 
 	MH_upper_target_prob = up; 
@@ -392,11 +507,15 @@ void CEES_Node::MH_Tracking_Start(int trackingL, double lp, double up)
 
 void CEES_Node::MH_Tracking_End()
 {
-	double accept_ratio = (double)(nMHSamplesAccepted_Recent)/nMHSamplesGenerated_Recent; 
-	if (accept_ratio < MH_lower_target_prob)	// should decrease stepsize
-		proposal->step_size_tune(accept_ratio/MH_lower_target_prob < 0.5 ? 0.5*sqrt(T[id]) : accept_ratio/MH_lower_target_prob*sqrt(T[id])); 
-	else if (accept_ratio > MH_upper_target_prob ) 	// should increase stepsize
-		proposal->step_size_tune(accept_ratio/MH_upper_target_prob > 2 ? 2*sqrt(T[id]): accept_ratio/MH_upper_target_prob*sqrt(T[id])); 
+	double accept_ratio; 
+	for (int iBlock = 0; iBlock < nBlock; iBlock ++)
+	{
+		accept_ratio = (double)(nMHSamplesAccepted_Recent[iBlock])/nMHSamplesGenerated_Recent; 
+		if (accept_ratio < MH_lower_target_prob)	// should decrease stepsize
+			proposal[iBlock]->step_size_tune(accept_ratio/MH_lower_target_prob < 0.5 ? 0.5*sqrt(T[id]) : accept_ratio/MH_lower_target_prob*sqrt(T[id])); 
+		else if (accept_ratio > MH_upper_target_prob ) 	// should increase stepsize
+			proposal[iBlock]->step_size_tune(accept_ratio/MH_upper_target_prob > 2 ? 2*sqrt(T[id]): accept_ratio/MH_upper_target_prob*sqrt(T[id])); 
+	}
 
 	MH_On = false; 
 }
@@ -421,6 +540,24 @@ void CEES_Node::AdjustLocalTarget()
 {
 	delete target; 
 	target = new CBoundedModel(H[id], T[id], ultimate_target); 
+}
+
+void CEES_Node::SetBlockSize(const int* _bSize, int _nB)
+{
+	nBlock = _nB; 
+	blockSize.resize(nBlock);
+	if (nBlock == 1)
+		blockSize[0] = dataDim;
+	else if (nBlock == dataDim)
+	{
+		for (int i=0; i<nBlock; i++)
+			blockSize[i] = 1; 
+	}
+	else
+	{
+		for (int i=0; i<nBlock; i++)
+			blockSize[i] = _bSize[i]; 
+	}
 }
 
 void CEES_Node::AssignSamplesGeneratedSoFar(CStorageHead &storage)

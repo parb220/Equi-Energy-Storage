@@ -98,10 +98,15 @@ int main()
 		exit(-1);
 	}
 
+	/* If MH block will be used */
+	if (MH_BLOCK)	
+		CEES_Node::SetBlockSize(NULL, CEES_Node::GetDataDimension()); 
+	else 
+		CEES_Node::SetBlockSize(NULL); 
+
 	/*  Generate K CEES_Node objects */
 	CEES_Node *simulator_node = new CEES_Node[CEES_Node::GetEnergyLevelNumber()]; 
 	
-	double *sigma = new double[CEES_Node::GetDataDimension()];
 	/* Uniform distribution in [0, 1]^2 used for initialization. */
 	double *lB = new double [CEES_Node::GetDataDimension()]; 
 	double *uB = new double [CEES_Node::GetDataDimension()]; 
@@ -124,17 +129,26 @@ int main()
 			simulator_node[i].SetHigherNodePointer(NULL);
 			simulator_node[i].SetBurnInPeriod(BURN_IN_PERIOD);  
 		}
-		/* Transition_SimpleGaussian with sigma=0.25sqrt(T) used for each energy level as the proposal model */	
-                for (int j=0; j<CEES_Node::GetDataDimension(); j++)
-                        sigma[j] = INITIAL_SIGMA * sqrt(simulator_node[i].GetTemperature());
-                simulator_node[i].SetProposal(new CTransitionModel_SimpleGaussian(CEES_Node::GetDataDimension(), sigma));
 		/*   Initialize       */
 		simulator_node[i].Initialize(initial_model, r); 
 	}
 	delete initial_model;
 	delete [] lB; 
 	delete [] uB; 
-	delete [] sigma; 
+	
+	// MH Proposal distribution 
+	double *sigma; 
+ 	for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
+	{
+		for (int iBlock = 0; iBlock <CEES_Node::GetNumberBlocks(); iBlock++)
+		{
+			sigma = new double[CEES_Node::GetBlockSize(iBlock)]; 
+			for (int j=0; j<CEES_Node::GetBlockSize(iBlock); j++)
+				sigma[j] = INITIAL_SIGMA * sqrt(simulator_node[i].GetTemperature());
+			simulator_node[i].SetProposal(new CTransitionModel_SimpleGaussian(CEES_Node::GetBlockSize(iBlock), sigma), iBlock); 
+			delete [] sigma; 
+		}
+	}
 
 	/*
  	Burn-in and simulation
@@ -155,11 +169,13 @@ int main()
 			TuneEnergyLevels_UpdateStorage(simulator_node, storage); 
 			nEnergyLevelTuning ++; 
 		} 
-		simulator_node[CEES_Node::GetEnergyLevelNumber()-1].draw(r, storage, MULTIPLE_TRY_MH); 
+		// simulator_node[CEES_Node::GetEnergyLevelNumber()-1].draw(r, storage, MULTIPLE_TRY_MH); 
+		simulator_node[CEES_Node::GetEnergyLevelNumber()-1].draw_block(r, storage); 
 		for (int i=CEES_Node::GetEnergyLevelNumber()-2; i>=0; i--)
 		{
 			if (simulator_node[i+1].EnergyRingBuildDone())
-				simulator_node[i].draw(r, storage, MULTIPLE_TRY_MH); 
+				// simulator_node[i].draw(r, storage, MULTIPLE_TRY_MH); 
+				simulator_node[i].draw_block(r, storage);
 		}
 		n++; 
 	}
@@ -179,10 +195,13 @@ int main()
 	for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
 		oFile << "\t" << simulator_node[i].GetBurnInPeriod(); 
 	oFile << endl; 
-	oFile << "Step size:";
-	for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
-		oFile << "\t" << simulator_node[i].GetProposal()->get_step_size(); 
-	oFile << endl; 
+	for (int iBlock =0; iBlock <CEES_Node::GetNumberBlocks(); iBlock++)
+	{
+		oFile << "Step size " << iBlock << ":"; 
+		for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
+			oFile << "\t" << simulator_node[i].GetProposal(iBlock)->get_step_size(); 
+		oFile << endl; 
+	}
 
 	oFile.close(); 
 	
