@@ -512,9 +512,9 @@ void CEES_Node::MH_Tracking_End()
 	{
 		accept_ratio = (double)(nMHSamplesAccepted_Recent[iBlock])/nMHSamplesGenerated_Recent; 
 		if (accept_ratio < MH_lower_target_prob)	// should decrease stepsize
-			proposal[iBlock]->step_size_tune(accept_ratio/MH_lower_target_prob < 0.5 ? 0.5*sqrt(T[id]) : accept_ratio/MH_lower_target_prob*sqrt(T[id])); 
+			proposal[iBlock]->step_size_tune(accept_ratio/MH_lower_target_prob < 0.5 ? 0.5 : accept_ratio/MH_lower_target_prob); 
 		else if (accept_ratio > MH_upper_target_prob ) 	// should increase stepsize
-			proposal[iBlock]->step_size_tune(accept_ratio/MH_upper_target_prob > 2 ? 2*sqrt(T[id]): accept_ratio/MH_upper_target_prob*sqrt(T[id])); 
+			proposal[iBlock]->step_size_tune(accept_ratio/MH_upper_target_prob > 2 ? 2: accept_ratio/MH_upper_target_prob); 
 	}
 
 	MH_On = false; 
