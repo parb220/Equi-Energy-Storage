@@ -7,22 +7,22 @@ using namespace std;
 
 void TuneEnergyLevels_UpdateStorage(CEES_Node *simulator, CStorageHead &storage)
 {
-	CEES_Node::if_tune_energy_level = false; 
-	double new_H0 = CEES_Node::min_energy; 
+	double new_H0_average = 0; 
+	for (int i=0; i<(int)(CEES_Node::min_energy.size()); i++)
+		new_H0_average += CEES_Node::min_energy[i]; 
+	new_H0_average = new_H0_average/(int)(CEES_Node::min_energy.size()); 
+	double new_HK_1_average = 0;
+	for (int i=0; i<(int)(CEES_Node::max_energy.size()); i++)
+		new_HK_1_average += CEES_Node::max_energy[i]; 
+	new_HK_1_average=new_HK_1_average/(int)(CEES_Node::max_energy.size()); 
 
 	// Re-determine and adjust energy level and temperature levels
-	if (!CEES_Node::SetEnergyLevels_GeometricProgression(new_H0, HK_1))
-        {
-                cout << "Error in setting energy levels." << endl;
-                exit(-1);
-        }
+	if (new_H0_average < CEES_Node::H[0])
+		CEES_Node::SetEnergyLevels_GeometricProgression(new_H0_average, HK_1);
 
 	// if (!CEES_Node::SetTemperatures_EnergyLevels(T0, TK_1, C) )
-	if (!CEES_Node::SetTemperatures_EnergyLevels(T0, TK_1) )
-        {
-                cout << "Error in setting temperature levels." << endl;
-                exit(-1);
-        }
+	double new_TK_1 = new_HK_1_average * 100; 
+	CEES_Node::SetTemperatures_EnergyLevels(T0, new_TK_1);
 	
 	// Re-adjust local target distribution and process samples that have been generated; 
 	storage.CreateTemporaryBin(); 

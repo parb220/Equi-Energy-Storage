@@ -81,22 +81,14 @@ int main()
  	Set energy levels according to the geometric progression given H0 and H[K-1]
 	Alternatively, could use SetEnergyLevels(double*, int) 
  	*/
-	if (!CEES_Node::SetEnergyLevels_GeometricProgression(H0, HK_1))
-	{
-		cout << "Error in setting energy levels." << endl; 
-		exit(-1); 
-	}
-	CEES_Node::InitializeMinEnergy(); 			// Initialize min_energy and if_tune_energy_level for tune_energy_level in the future; 
+	CEES_Node::SetEnergyLevels_GeometricProgression(H0, HK_1); 
+	CEES_Node::InitializeMinMaxEnergy(ENERGY_TRACKING_NUMBER); // Initialize min_energy and if_tune_energy_level for tune_energy_level in the future; 
 	
 	/*
  	Set temperatures for all levels, either according to the energy levels, or use SetTemperatures(double*, int)
  	*/
 	// if (!CEES_Node::SetTemperatures_EnergyLevels(T0, TK_1, C) ) // (H[i+1]-H[i])/T[i] is a constant;
-	if (!CEES_Node::SetTemperatures_EnergyLevels(T0, TK_1) ) // (H[i+1]-H[i])/(T[i+1]-T[i]) is a constant
-	{
-		cout << "Error in setting temperature levels." << endl; 
-		exit(-1);
-	}
+	CEES_Node::SetTemperatures_EnergyLevels(T0, TK_1); // (H[i+1]-H[i])/(T[i+1]-T[i]) is a constant
 
 	/* If MH block will be used */
 	if (MH_BLOCK)	
@@ -164,7 +156,7 @@ int main()
 				simulator_node[i].MH_Tracking_Start(MH_TRACKING_LENGTH, MH_LOW_ACC, MH_HIGH_ACC); 
 		}
 		// Tuning Energy level every ENERGY_LEVEL_TUNING_FREQUENCY and for at most ENERGY_LEVEL_TUNING_MAX_TIME
-		if (IF_ENERGY_LEVEL_TUNING && CEES_Node::IfTuneEnergyLevel() && (n% ENERGY_LEVEL_TUNING_FREQUENCY) == 0 && nEnergyLevelTuning <= ENERGY_LEVEL_TUNING_MAX_TIME)
+		if (IF_ENERGY_LEVEL_TUNING && (n% ENERGY_LEVEL_TUNING_FREQUENCY) == 0 && nEnergyLevelTuning <= ENERGY_LEVEL_TUNING_MAX_TIME)
 		{
 			TuneEnergyLevels_UpdateStorage(simulator_node, storage); 
 			nEnergyLevelTuning ++; 

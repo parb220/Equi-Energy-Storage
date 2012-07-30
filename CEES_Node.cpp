@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <boost/thread/xtime.hpp>
 #include <boost/thread/thread.hpp>
 #include <cstring>
@@ -15,8 +16,9 @@ int CEES_Node::N;
 int CEES_Node::dataDim; 
 int CEES_Node::depositFreq; 
 CModel * CEES_Node::ultimate_target;
-double CEES_Node::min_energy; 
-bool CEES_Node::if_tune_energy_level;
+vector <double > CEES_Node::min_energy; 
+vector <double > CEES_Node::max_energy; 
+int CEES_Node:: min_max_energy_capacity; 
 
 int CEES_Node::nBlock; 
 vector < int > CEES_Node::blockSize;
@@ -128,7 +130,7 @@ void CEES_Node::Initialize(const gsl_rng *r)
 	ring_index_current = GetRingIndex(energy_current); 
 	nSamplesGenerated ++; 
 	
-	UpdateMinEnergy(energy_current);
+	UpdateMinMaxEnergy(energy_current);
 }
 
 void CEES_Node::Initialize(CModel * model, const gsl_rng *r)
@@ -142,7 +144,7 @@ void CEES_Node::Initialize(CModel * model, const gsl_rng *r)
 	nSamplesGenerated ++;
 
 	// for tuning energy levels
-	UpdateMinEnergy(energy_current); 
+	UpdateMinMaxEnergy(energy_current); 
 }
 
 void CEES_Node::Initialize(const double *x, int x_d)
@@ -152,7 +154,7 @@ void CEES_Node::Initialize(const double *x, int x_d)
 	ring_index_current = GetRingIndex(energy_current); 
 	nSamplesGenerated++;
 	
-	UpdateMinEnergy(energy_current);
+	UpdateMinMaxEnergy(energy_current);
 }
 
 
@@ -337,7 +339,7 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage, int mMH )
 			energy_current = OriginalEnergy(x_current, dataDim); 
 			ring_index_current = GetRingIndex(energy_current); 
 
-			UpdateMinEnergy(energy_current); 
+			UpdateMinMaxEnergy(energy_current); 
 		}
 		if (MH_On)
 			nMHSamplesGenerated_Recent ++; 
@@ -366,7 +368,7 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage, int mMH )
 				memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
 				energy_current = OriginalEnergy(x_current, dataDim); 
 				ring_index_current = GetRingIndex(energy_current); 
-				UpdateMinEnergy(energy_current); 
+				UpdateMinMaxEnergy(energy_current); 
 			}
 			if (MH_On)
                         	nMHSamplesGenerated_Recent ++; 
@@ -394,12 +396,11 @@ void CEES_Node::draw_block(const gsl_rng *r, CStorageHead &storage)
 	vector <bool > new_sample_flag(nBlock, false); 
 	double overall_new_sample_flag; 
 	double x_weight; 
-	double logP; 
 	if (next_level != NULL)
 		bin_id_next_level = next_level->BinID(ring_index_current); 
 	if (next_level == NULL || storage.empty(bin_id_next_level)) 
 	{
-		logP = target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag, nBlock, blockSize); 
+		target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag, nBlock, blockSize); 
 		// start: check each block to see if it has been updated 
 		overall_new_sample_flag = false; 
 		for (int iBlock =0; iBlock <nBlock; iBlock ++)
@@ -417,7 +418,7 @@ void CEES_Node::draw_block(const gsl_rng *r, CStorageHead &storage)
 			energy_current = OriginalEnergy(x_current, dataDim);
 			ring_index_current = GetRingIndex(energy_current); 
 
-			UpdateMinEnergy(energy_current); 
+			UpdateMinMaxEnergy(energy_current); 
 		}
 		// end: check each block to see if it has been updated
 		if (MH_On)
@@ -456,7 +457,7 @@ void CEES_Node::draw_block(const gsl_rng *r, CStorageHead &storage)
                         	energy_current = OriginalEnergy(x_current, dataDim);
                         	ring_index_current = GetRingIndex(energy_current);
 
-                        	UpdateMinEnergy(energy_current);
+                        	UpdateMinMaxEnergy(energy_current);
                 	}
 
 			if (MH_On)
@@ -520,20 +521,23 @@ void CEES_Node::MH_Tracking_End()
 	MH_On = false; 
 }
 
-void CEES_Node::InitializeMinEnergy()
+void CEES_Node::InitializeMinMaxEnergy(int capacity)
 {
-	min_energy = H[0]; 
-	if_tune_energy_level = false; 	
+	min_max_energy_capacity = capacity; 	
 }
 
-void CEES_Node::UpdateMinEnergy(double _new_energy)
+void CEES_Node::UpdateMinMaxEnergy(double _new_energy)
 {
-	if (_new_energy < min_energy) 
-	{
-		min_energy = _new_energy; 
-		if (min_energy < H[0])
-			if_tune_energy_level = true; 
-	}
+	vector<double>::iterator position; 
+	position =upper_bound(min_energy.begin(), min_energy.end(), _new_energy); 
+	min_energy.insert(position, _new_energy); 
+	if ((int)(min_energy.size()) > min_max_energy_capacity)
+		min_energy.pop_back(); 	
+	
+	position =lower_bound(max_energy.begin(), max_energy.end(), _new_energy); 
+	max_energy.insert(position, _new_energy); 
+	if ((int)(max_energy.size()) > min_max_energy_capacity)
+		max_energy.erase(max_energy.begin()); 
 }
 
 void CEES_Node::AdjustLocalTarget()
