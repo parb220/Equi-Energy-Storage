@@ -11,26 +11,33 @@ int CEES_Node::K;
 vector <double> CEES_Node::H; 
 vector <double> CEES_Node::T; 
 double CEES_Node::pee; 
-
 int CEES_Node::N; 
 int CEES_Node::dataDim; 
 int CEES_Node::depositFreq; 
 CModel * CEES_Node::ultimate_target;
+
 vector <double > CEES_Node::min_energy; 
 vector <double > CEES_Node::max_energy; 
 int CEES_Node:: min_max_energy_capacity; 
+int CEES_Node::energylevel_tracking_window_length; 
+int CEES_Node::energylevel_tune_number; 
+vector <bool> if_tune_energy_level; 
 
 int CEES_Node::nBlock; 
 vector < int > CEES_Node::blockSize;
+
+int CEES_Node::max_stepsize_tune_number;
+int CEES_Node::stepsize_tracking_window_length;
+double CEES_Node::stepsize_tune_lower_target_prob; 
+double CEES_Node::stepsize_tune_upper_target_prob; 
 
 CEES_Node::CEES_Node(int iEnergyLevel)
 {
 	id = iEnergyLevel; 
 	nSamplesGenerated = 0; 
 
-	nMHSamplesGenerated_Recent = 0; 
 	nMHSamplesAccepted_Recent = vector<int>(nBlock, 0); 
-	MH_On = false;
+	stepsize_tune_number = 0; 
 	
 	proposal = new CTransitionModel *[nBlock]; 
 	proposal[0] = NULL;  
@@ -48,9 +55,8 @@ CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel *transition, CEES_Node *
 	id = iEnergyLevel; 
 	nSamplesGenerated = 0; 
 
-	nMHSamplesGenerated_Recent = 0; 
 	nMHSamplesAccepted_Recent = vector<int>(nBlock, 0); 
-	MH_On = false; 
+	stepsize_tune_number = 0; 
 
 	proposal = new CTransitionModel *[nBlock]; 
 	proposal[0] = transition;
@@ -62,14 +68,14 @@ CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel *transition, CEES_Node *
 	target = new CBoundedModel(H[id], T[id], ultimate_target); 
 	ring_size = vector< int> (K, 0);
 }
+
 CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel **transition, CEES_Node *pNext)
 {
         id = iEnergyLevel;
         nSamplesGenerated = 0;
 
-        nMHSamplesGenerated_Recent = 0;
         nMHSamplesAccepted_Recent = vector<int>(nBlock, 0);
-        MH_On = false;
+	stepsize_tune_number = 0; 
 
 	proposal = new CTransitionModel *[nBlock]; 
 	for (int iBlock =0; iBlock<nBlock; iBlock++)
@@ -86,7 +92,7 @@ CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel **transition, CEES_Node 
 void CEES_Node::SetID_LocalTarget(int iEnergyLevel)
 {
 	id = iEnergyLevel; 
-	target = new CBoundedModel(H[id], T[id], ultimate_target); 
+	AdjustLocalTarget();	// Set up local target according to H[id] and T[id] 
 }
 
 CEES_Node::~CEES_Node()
@@ -111,26 +117,45 @@ int CEES_Node::BinID(double e) const
 	return id*K+energy_index; 
 }
 
-int CEES_Node::BinID(int energy_index) const
-{
-	return id*K+energy_index; 
-}
 
 bool CEES_Node::BurnInDone()
 {
-	if (nSamplesGenerated >= B)
+	if (stepsize_tune_number >= max_stepsize_tune_number && energylevel_tune_number >= max_energylevel_tune_number && nSamplesGenerated >= B)
 		return true; 
-	return false;
+	else 
+		return false;
 }
+
+void CEES_Node::TuneEnergyLevel_MHStepSize_IfAppropriate()
+{
+	if (energylevel_tune_number < max_energylevel_tune_number)	
+	{
+		UpdateMinMaxEnergy(energy_current);
+		if (stepsize_tune_number >= max_stepsize_tune_number && nSampelsGenerated >= energylevel_tracking_window_length)
+			if_tune_energy_level[id] = true; 	
+		if (TimeToTuneEnergyLevel())
+		{
+			TuneEnergyLevels(); 
+			RewindSampleCounter(); 
+			RewindStepSizeTuneCounter(); 	
+		}
+	}
+	if (stepsize_tune_number < max_stepsize_tune_number && nSamplesGenerated%stepsize_tracking_window_length ==0) 
+	{
+		MH_StepSize_Tune(); 
+		RewindSampleCounter(); 
+	}
+}
+
 
 void CEES_Node::Initialize(const gsl_rng *r)
 {
 	target->draw(x_current, dataDim, r); 
 	energy_current = OriginalEnergy(x_current, dataDim); 
-	ring_index_current = GetRingIndex(energy_current); 
+	ring_index_current = GetRingIndex(energy_current);
+
 	nSamplesGenerated ++; 
-	
-	UpdateMinMaxEnergy(energy_current);
+	TuneEnergyLevel_MHStepSize_IfAppropriate(); 
 }
 
 void CEES_Node::Initialize(CModel * model, const gsl_rng *r)
@@ -142,9 +167,7 @@ void CEES_Node::Initialize(CModel * model, const gsl_rng *r)
 	energy_current = OriginalEnergy(x_current, dataDim); 
 	ring_index_current = GetRingIndex(energy_current); 
 	nSamplesGenerated ++;
-
-	// for tuning energy levels
-	UpdateMinMaxEnergy(energy_current); 
+	TuneEnergyLevel_MHStepSize_IfAppropriate();
 }
 
 void CEES_Node::Initialize(const double *x, int x_d)
@@ -153,74 +176,7 @@ void CEES_Node::Initialize(const double *x, int x_d)
 	energy_current = OriginalEnergy(x_current, dataDim); 
 	ring_index_current = GetRingIndex(energy_current); 
 	nSamplesGenerated++;
-	
-	UpdateMinMaxEnergy(energy_current);
-}
-
-
-double CEES_Node::LogProbRatio(const double *x, const double *y, int dim)
-{
-	return target->log_prob(x, dim)-target->log_prob(y, dim); 
-}
-
-void CEES_Node::SetDataDimension(int d)
-{
-	dataDim = d; 
-}
-
-int CEES_Node::GetDataDimension()  
-{
-	return dataDim;
-}
-
-void CEES_Node::SetEnergyLevelNumber(int i)
-{
-	K = i; 
-}
-
-int CEES_Node::GetEnergyLevelNumber() 
-{
-	return K; 
-}
-
-void CEES_Node::SetEquiEnergyJumpProb(double p)
-{
-	pee = p;
-}
-
-int CEES_Node::GetEquiEnergyJumpProb() 
-{
-	return pee; 
-}
-
-void CEES_Node::SetBurnInPeriod(int b)
-{
-	B = b; 
-}
-
-int CEES_Node::GetBurnInPeriod()  const
-{
-	return B; 
-}
-
-void CEES_Node::SetPeriodBuildInitialRing(int n)
-{
-	N = n; 
-}
-
-int CEES_Node::GetPeriodBuildInitialRing() 
-{
-	return N;
-}
-
-void CEES_Node::SetDepositFreq(int f)
-{
-	depositFreq = f;
-}
-
-int CEES_Node::GetDepositFreq() 
-{
-	return depositFreq;
+	TuneEnergyLevel_MHStepSize_IfAppropriate();	
 }
 
 bool CEES_Node::SetEnergyLevels(double *e, int n)
@@ -317,7 +273,7 @@ int CEES_Node::GetRingIndex(double e) const
 
 bool CEES_Node::EnergyRingBuildDone() const
 {
-	if (nSamplesGenerated >= B+N)
+	if (BurnInDone() && nSamplesGenerated >= B+N)
 		return true; 
 	else 
 		return false;
@@ -339,11 +295,10 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage, int mMH )
 			energy_current = OriginalEnergy(x_current, dataDim); 
 			ring_index_current = GetRingIndex(energy_current); 
 
-			UpdateMinMaxEnergy(energy_current); 
+			if (energylevel_tune_number < max_energylevel_tune_number)
+				UpdateMinMaxEnergy(energy_current); 
 		}
-		if (MH_On)
-			nMHSamplesGenerated_Recent ++; 
-		if (MH_On && new_sample_flag)
+		if (stepsize_tune_number < max_stepsize_tune_number && new_sample_flag)
 			nMHSamplesAccepted_Recent[0] ++; 
 	}
 	else	// equi-energy draw with prob. of pee
@@ -368,16 +323,15 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage, int mMH )
 				memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
 				energy_current = OriginalEnergy(x_current, dataDim); 
 				ring_index_current = GetRingIndex(energy_current); 
-				UpdateMinMaxEnergy(energy_current); 
+				if (energylevel_tune_number < max_energylevel_tune_number)
+					UpdateMinMaxEnergy(energy_current); 
 			}
-			if (MH_On)
-                        	nMHSamplesGenerated_Recent ++; 
-                	if (MH_On && new_sample_flag)
+                	if (stepsize_tune_number < max_stepsize_tune_number && new_sample_flag)
                         	nMHSamplesAccepted_Recent[0] ++;
 		}
 	}
 
-	if (BurnInDone() && (nSamplesGenerated-B)%depositFreq==0)
+	if (BurnInDone() && nSamplesGenerated%depositFreq==0)
 	{
 		bin_id = BinID(ring_index_current); 
 		x_id = nSamplesGenerated; 
@@ -385,9 +339,8 @@ void CEES_Node::draw(const gsl_rng *r, CStorageHead &storage, int mMH )
 		storage.DepositSample(bin_id, x_current, dataDim, x_id, x_weight); 
 		ring_size[ring_index_current] ++;
 	}
-	if (MH_On && nMHSamplesGenerated_Recent >= MH_Tracking_Length)
-		MH_Tracking_End(); 
 	nSamplesGenerated ++;
+	TuneEnergyLevel_MHStepSize_IfAppropriate();
 }
 
 void CEES_Node::draw_block(const gsl_rng *r, CStorageHead &storage)
@@ -408,7 +361,7 @@ void CEES_Node::draw_block(const gsl_rng *r, CStorageHead &storage)
 			if(new_sample_flag[iBlock])
 			{
 				overall_new_sample_flag = true; 
-				if (MH_On)
+				if (stepsize_tune_number < max_stepsize_tune_number)
 					nMHSamplesAccepted_Recent[iBlock] ++;
 			}
 		}
@@ -417,12 +370,10 @@ void CEES_Node::draw_block(const gsl_rng *r, CStorageHead &storage)
 			memcpy(x_current, x_new, sizeof(x_new)*dataDim); 
 			energy_current = OriginalEnergy(x_current, dataDim);
 			ring_index_current = GetRingIndex(energy_current); 
-
-			UpdateMinMaxEnergy(energy_current); 
+			if (energylevel_tune_number < max_energylevel_tune_number)
+				UpdateMinMaxEnergy(energy_current); 
 		}
 		// end: check each block to see if it has been updated
-		if (MH_On)
-			nMHSamplesGenerated_Recent ++; 
 	}
 	else	// equi-energy draw with prob. of pee
 	{
@@ -447,7 +398,7 @@ void CEES_Node::draw_block(const gsl_rng *r, CStorageHead &storage)
                         	if(new_sample_flag[iBlock])
                         	{
                                 	overall_new_sample_flag = true;
-                                	if (MH_On)
+                                	if (stepsize_tune_number < max_stepsize_tune_number)
                                         	nMHSamplesAccepted_Recent[iBlock] ++;
                         	}
                 	}
@@ -456,16 +407,13 @@ void CEES_Node::draw_block(const gsl_rng *r, CStorageHead &storage)
                         	memcpy(x_current, x_new, sizeof(x_new)*dataDim);
                         	energy_current = OriginalEnergy(x_current, dataDim);
                         	ring_index_current = GetRingIndex(energy_current);
-
-                        	UpdateMinMaxEnergy(energy_current);
+				if (energylevel_tune_number < max_energylevel_tune_number)
+                        		UpdateMinMaxEnergy(energy_current);
                 	}
-
-			if (MH_On)
-                        	nMHSamplesGenerated_Recent ++; 
 		}
 	}
 
-	if (BurnInDone() && (nSamplesGenerated-B)%depositFreq==0)
+	if (BurnInDone() && nSamplesGenerated%depositFreq==0)
 	{
 		bin_id = BinID(ring_index_current); 
 		x_id = nSamplesGenerated; 
@@ -473,9 +421,8 @@ void CEES_Node::draw_block(const gsl_rng *r, CStorageHead &storage)
 		storage.DepositSample(bin_id, x_current, dataDim, x_id, x_weight); 
 		ring_size[ring_index_current] ++;
 	}
-	if (MH_On && nMHSamplesGenerated_Recent >= MH_Tracking_Length)
-		MH_Tracking_End(); 
 	nSamplesGenerated ++;
+	TuneEnergyLevel_MHStepSize_IfAppropriate();
 }
 
 ofstream & summary(ofstream &of, const CEES_Node *simulator)
@@ -496,19 +443,32 @@ ofstream & summary(ofstream &of, const CEES_Node *simulator)
 	return of;
 }
 
-void CEES_Node::MH_Tracking_Start(int trackingL, double lp, double up)
+void CEES_Node::MH_StepSize_Tune()
+// Adapt from Dan's Adaptive Scaling
 {
-	MH_On = true; 
-	nMHSamplesGenerated_Recent = 0; 
-	nMHSamplesAccepted_Recent = vector<int>(nBlock, 0);   
-	MH_Tracking_Length = trackingL; 
-	MH_lower_target_prob = lp; 
-	MH_upper_target_prob = up; 
-}
+	double log_mid = log(stepsize_tune_target_prob); 
+	double lower_bound = exp(log_mid/0.2); 
+	double upper_bound = exp(log_mid/5.0);  
+	
+	double nSamplesGenerated = stepsize_tracking_window_length;
+	double nSamplesAccepted; 
+	double previous_ratio, current_ratio; 
+	double low_scale, high_scale, scale; 
+	double low_jump_ratio, high_jump_ratio;
+	
+	for (int iBlock=0; iBlock<nBlock; iBlock++)
+	{
+		nSamplesAccepted = nMHSamplesAccepted_Recent[iBlock];
+		previous_ratio = (double)(nSamplesAccepted)/(double)(nSamplesGenerated); 
+		if (previous_ratio < stepsize_tune_target_prob)
+		{
+			low_scale = 
+		}
+		{
+		}	
+	}
 
-void CEES_Node::MH_Tracking_End()
-{
-	double accept_ratio; 
+	/*double accept_ratio; 
 	for (int iBlock = 0; iBlock < nBlock; iBlock ++)
 	{
 		accept_ratio = (double)(nMHSamplesAccepted_Recent[iBlock])/nMHSamplesGenerated_Recent; 
@@ -516,9 +476,7 @@ void CEES_Node::MH_Tracking_End()
 			proposal[iBlock]->step_size_tune(accept_ratio/MH_lower_target_prob < 0.5 ? 0.5 : accept_ratio/MH_lower_target_prob); 
 		else if (accept_ratio > MH_upper_target_prob ) 	// should increase stepsize
 			proposal[iBlock]->step_size_tune(accept_ratio/MH_upper_target_prob > 2 ? 2: accept_ratio/MH_upper_target_prob); 
-	}
-
-	MH_On = false; 
+	} */
 }
 
 void CEES_Node::InitializeMinMaxEnergy(int capacity)
@@ -542,7 +500,8 @@ void CEES_Node::UpdateMinMaxEnergy(double _new_energy)
 
 void CEES_Node::AdjustLocalTarget()
 {
-	delete target; 
+	if (target)
+		delete target; 
 	target = new CBoundedModel(H[id], T[id], ultimate_target); 
 }
 
@@ -601,4 +560,21 @@ void CEES_Node::AssignSamplesGeneratedSoFar(CStorageHead &storage)
 		storage_bin_id = BinID(bin_id); 
 		storage.Consolidate(storage_bin_id); 
 	}
+}
+
+void CEES_Node:: SetMaxEnergyLevelTuneNumber(int _n) 
+{ 
+	max_energylevel_tune_number = _n; 
+	energy_level_tune_number = 0;
+	if_tune_energy_level = vector <bool> (K, false); 
+}
+
+bool CEES_Node::TimeToTuneEnergyLevel()
+{
+	for (int i=0; i<(int)(if_tune_energy_level.size()); i++)
+	{
+		if (!if_tune_energy_level[i])
+			return false; 
+	}
+	return true; 
 }

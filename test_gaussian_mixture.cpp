@@ -72,10 +72,10 @@ int main()
  	*/
 	CEES_Node::SetEnergyLevelNumber(NUMBER_ENERGY_LEVEL); 		// Number of energy levels; 
 	CEES_Node::SetEquiEnergyJumpProb(PEE);				// Probability for equal energy jump
-	CEES_Node::SetPeriodBuildInitialRing(BUILD_INITIAL_ENERGY_SET_PERIOD);	// Period to build initial energy ring
 	CEES_Node::SetDataDimension(DATA_DIMENSION); 		// Data dimension for simulation
+	CEES_Node::SetPeriodBuildInitialRing(BUILD_INITIAL_ENERGY_SET_PERIOD);	// Period to build initial energy ring
 	CEES_Node::SetDepositFreq(DEPOSIT_FREQUENCY); 		// Frequency of deposit
-	CEES_Node::ultimate_target = &target;	
+	CEES_Node::ultimate_target = &target;			// Ultimate target distribution
 
 	/*
  	Set energy levels according to the geometric progression given H0 and H[K-1]
@@ -87,7 +87,6 @@ int main()
 	/*
  	Set temperatures for all levels, either according to the energy levels, or use SetTemperatures(double*, int)
  	*/
-	// if (!CEES_Node::SetTemperatures_EnergyLevels(T0, TK_1, C) ) // (H[i+1]-H[i])/T[i] is a constant;
 	CEES_Node::SetTemperatures_EnergyLevels(T0, TK_1); // (H[i+1]-H[i])/(T[i+1]-T[i]) is a constant
 
 	/* If MH block will be used */
@@ -96,10 +95,20 @@ int main()
 	else 
 		CEES_Node::SetBlockSize(NULL); 
 
+	/* MH tuning parameters */
+	CEES_Node::SetMaxMHTuneNumber(MH_STEPSIZE_TUNING_MAX_TIME); 
+	CEES_Node::SetMHTrackingWindowLength(MH_TRACKING_LENGTH); 
+	CEES_Node::SetMHTuneLowerTargetProb(MH_LOW_ACC); 
+	CEES_Node::SetMHTuneUpperTargetProb(MH_HIGH_ACC); 
+
+	/* Energy-level tuning parameters */
+	CEES_Node::SetMaxEnergyLevelTuneNumber(ENERGY_LEVEL_TUNING_MAX_TIME); 
+	CEES_Node::SetEnergyLevelTrackingWindowLength(ENERGY_LEVEL_TRACKING_WINDOW_LENGTH); 
+
 	/*  Generate K CEES_Node objects */
 	CEES_Node *simulator_node = new CEES_Node[CEES_Node::GetEnergyLevelNumber()]; 
 	
-	/* Uniform distribution in [0, 1]^2 used for initialization. */
+	/* Use a uniform distribution model for initialization. */
 	double *lB = new double [CEES_Node::GetDataDimension()]; 
 	double *uB = new double [CEES_Node::GetDataDimension()]; 
 	for (int i=0; i<CEES_Node::GetDataDimension(); i++)
@@ -110,7 +119,7 @@ int main()
 	CModel *initial_model = new CUniformModel(CEES_Node::GetDataDimension(), lB, uB); 
 	for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
 	{
-		simulator_node[i].SetID_LocalTarget(i); 
+		simulator_node[i].SetID_LocalTarget(i); 	// Also set the local target distribution here
 		if (i < CEES_Node::GetEnergyLevelNumber() -1)
 		{
 			simulator_node[i].SetBurnInPeriod(0);
@@ -121,7 +130,6 @@ int main()
 			simulator_node[i].SetHigherNodePointer(NULL);
 			simulator_node[i].SetBurnInPeriod(BURN_IN_PERIOD);  
 		}
-		/*   Initialize       */
 		simulator_node[i].Initialize(initial_model, r); 
 	}
 	delete initial_model;
@@ -147,20 +155,20 @@ int main()
  	*/
 	int n=0; 
 	int nEnergyLevelTuning = 0; 
-	while (n<(CEES_Node::GetEnergyLevelNumber()-1)*CEES_Node::GetPeriodBuildInitialRing()+SIMULATION_LENGTH)
+	while (n<SIMULATION_LENGTH)
 	{
 		// Tuning MH step sizes; 
-		if ( (IF_MH_TRACKING && n% MH_TRACKING_FREQUENCY) == 0)
+		/*if ( (IF_MH_TRACKING && n% MH_TRACKING_FREQUENCY) == 0)
 		{
 			for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
 				simulator_node[i].MH_Tracking_Start(MH_TRACKING_LENGTH, MH_LOW_ACC, MH_HIGH_ACC); 
-		}
+		}*/
 		// Tuning Energy level every ENERGY_LEVEL_TUNING_FREQUENCY and for at most ENERGY_LEVEL_TUNING_MAX_TIME
-		if (IF_ENERGY_LEVEL_TUNING && (n% ENERGY_LEVEL_TUNING_FREQUENCY) == 0 && nEnergyLevelTuning <= ENERGY_LEVEL_TUNING_MAX_TIME)
+		/*if (IF_ENERGY_LEVEL_TUNING && (n% ENERGY_LEVEL_TUNING_FREQUENCY) == 0 && nEnergyLevelTuning <= ENERGY_LEVEL_TUNING_MAX_TIME)
 		{
 			TuneEnergyLevels_UpdateStorage(simulator_node, storage); 
 			nEnergyLevelTuning ++; 
-		} 
+		} */
 		// simulator_node[CEES_Node::GetEnergyLevelNumber()-1].draw(r, storage, MULTIPLE_TRY_MH); 
 		simulator_node[CEES_Node::GetEnergyLevelNumber()-1].draw_block(r, storage); 
 		for (int i=CEES_Node::GetEnergyLevelNumber()-2; i>=0; i--)
@@ -169,7 +177,8 @@ int main()
 				// simulator_node[i].draw(r, storage, MULTIPLE_TRY_MH); 
 				simulator_node[i].draw_block(r, storage);
 		}
-		n++; 
+		if (simulator_node[0].EnergyRingBuildDone())
+			n++; 
 	}
 
 	storage.finalize(); 		// save to hard-disk of those unsaved data
