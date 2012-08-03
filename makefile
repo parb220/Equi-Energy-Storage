@@ -1,5 +1,5 @@
-SOURCES = CEES_Node.cpp CSampleIDWeight.cpp CPutGetBin.cpp CStorageHead.cpp test_gaussian_mixture.cpp TuneEnergyLevlesUpdateStorage.cpp
-OBJS = CEES_Node.o CSampleIDWeight.o CPutGetBin.o CStorageHead.o test_gaussian_mixture.o TuneEnergyLevlesUpdateStorage.o
+SOURCES = CEES_Node.cpp CSampleIDWeight.cpp CPutGetBin.cpp CStorageHead.cpp test_gaussian_mixture.cpp TuneEnergyLevlesUpdateStorage.cpp MHAdaptive.cpp
+OBJS = CEES_Node.o CSampleIDWeight.o CPutGetBin.o CStorageHead.o test_gaussian_mixture.o TuneEnergyLevlesUpdateStorage.o MHAdaptive.o
 EXECUTABLE = test_gaussian_mixture 
 
 CPP = gcc

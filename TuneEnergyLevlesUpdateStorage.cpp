@@ -17,12 +17,12 @@ void TuneEnergyLevels_UpdateStorage(CEES_Node *simulator, CStorageHead &storage)
 	new_HK_1_average=new_HK_1_average/(int)(CEES_Node::max_energy.size()); 
 
 	// Re-determine and adjust energy level and temperature levels
-	if (new_H0_average < CEES_Node::H[0])
+	if (new_H0_average != CEES_Node::H[0]) // || new_HK_1_average != CEES_Node::H[CEES_Node::K-1])
 		CEES_Node::SetEnergyLevels_GeometricProgression(new_H0_average, HK_1);
 
-	// if (!CEES_Node::SetTemperatures_EnergyLevels(T0, TK_1, C) )
-	double new_TK_1 = new_HK_1_average * 100; 
-	CEES_Node::SetTemperatures_EnergyLevels(T0, new_TK_1);
+	CEES_Node::SetTemperatures_EnergyLevels(T0, HK_1/C); 
+	// double new_TK_1 = new_HK_1_average * 100; 
+	// CEES_Node::SetTemperatures_EnergyLevels(T0, new_TK_1);
 	
 	// Re-adjust local target distribution and process samples that have been generated; 
 	storage.CreateTemporaryBin(); 

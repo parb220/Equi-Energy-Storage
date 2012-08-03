@@ -17,7 +17,7 @@ close summaryFile;
 
 my @terms; 
 my ($get_marker, $put_marker, $number_bins, $data_dimension); 
-my ($number_levels, $prob_eejump, $burn_in, $initial_ring, $deposit_freq); 
+my ($number_levels, $prob_eejump, $burn_in, $energy_tune_length, $energy_tune_number, $deposit_freq, $MH_target_prob, $MH_initial_window_length, $MH_window_number); 
 my (@energy, @temperature, @sigma); 
 my @bin; 
 foreach my $line (@lines)
@@ -34,10 +34,18 @@ foreach my $line (@lines)
 		$number_levels = $terms[$#terms]; 
 	} elsif (index($line, "Prob Equi-Jump") >= 0) {
 		$prob_eejump = $terms[$#terms]; 
-	} elsif (index($line, "Burn-In") >= 0) {
+	} elsif (index($line, "Burn In") >= 0) {
 		$burn_in = $terms[$#terms]; 
-	} elsif (index($line, "Build Initial Ring") >= 0) {
-		$initial_ring = $terms[$#terms]; 
+	} elsif (index($line, "Tune Energy Level Window Length") >= 0) {
+		$energy_tune_length = $terms[$#terms]; 
+	} elsif (index($line, "Tune Energy Level Number") >= 0) {
+		$energy_tune_number = $terms[$#terms]; 
+	} elsif (index($line, "MH Target Probability") >= 0) {
+		$MH_target_prob = $terms[$#terms]; 
+	} elsif (index($line, "MH Initial Window Length") >= 0) {
+		$MH_initial_window_length = $terms[$#terms]; 
+	} elsif (index($line, "MH Window Number") >= 0) {
+		$MH_window_number = 0; 
 	} elsif (index($line, "Deposit Frequency") >= 0) {
 		$deposit_freq = $terms[$#terms]; 
 	} elsif (index($line, "Data Dimension") >= 0) {
@@ -53,7 +61,7 @@ foreach my $line (@lines)
 			pop @terms; 
 		}
 	} elsif (index($line, "Step size") >= 0) {
-		foreach my $counter (1..$number_levels) {
+		foreach my $counter (1..$data_dimension) {
 			unshift @sigma, $terms[$#terms]; 
 			pop @terms; 
 		}

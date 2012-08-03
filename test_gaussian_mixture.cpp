@@ -73,8 +73,6 @@ int main()
 	CEES_Node::SetEnergyLevelNumber(NUMBER_ENERGY_LEVEL); 		// Number of energy levels; 
 	CEES_Node::SetEquiEnergyJumpProb(PEE);				// Probability for equal energy jump
 	CEES_Node::SetDataDimension(DATA_DIMENSION); 		// Data dimension for simulation
-	CEES_Node::SetPeriodBuildInitialRing(BUILD_INITIAL_ENERGY_SET_PERIOD);	// Period to build initial energy ring
-	CEES_Node::SetDepositFreq(DEPOSIT_FREQUENCY); 		// Frequency of deposit
 	CEES_Node::ultimate_target = &target;			// Ultimate target distribution
 
 	/*
@@ -87,7 +85,7 @@ int main()
 	/*
  	Set temperatures for all levels, either according to the energy levels, or use SetTemperatures(double*, int)
  	*/
-	CEES_Node::SetTemperatures_EnergyLevels(T0, TK_1); // (H[i+1]-H[i])/(T[i+1]-T[i]) is a constant
+	CEES_Node::SetTemperatures_EnergyLevels(T0, HK_1/C); // (H[i+1]-H[i])/(T[i+1]-T[i]) is a constant
 
 	/* If MH block will be used */
 	if (MH_BLOCK)	
@@ -95,51 +93,18 @@ int main()
 	else 
 		CEES_Node::SetBlockSize(NULL); 
 
-	/* MH tuning parameters */
-	CEES_Node::SetMaxMHTuneNumber(MH_STEPSIZE_TUNING_MAX_TIME); 
-	CEES_Node::SetMHTrackingWindowLength(MH_TRACKING_LENGTH); 
-	CEES_Node::SetMHTuneLowerTargetProb(MH_LOW_ACC); 
-	CEES_Node::SetMHTuneUpperTargetProb(MH_HIGH_ACC); 
-
-	/* Energy-level tuning parameters */
-	CEES_Node::SetMaxEnergyLevelTuneNumber(ENERGY_LEVEL_TUNING_MAX_TIME); 
-	CEES_Node::SetEnergyLevelTrackingWindowLength(ENERGY_LEVEL_TRACKING_WINDOW_LENGTH); 
-
 	/*  Generate K CEES_Node objects */
 	CEES_Node *simulator_node = new CEES_Node[CEES_Node::GetEnergyLevelNumber()]; 
 	
-	/* Use a uniform distribution model for initialization. */
-	double *lB = new double [CEES_Node::GetDataDimension()]; 
-	double *uB = new double [CEES_Node::GetDataDimension()]; 
-	for (int i=0; i<CEES_Node::GetDataDimension(); i++)
-	{
-		lB[i] = 0.0; 
-		uB[i] = 1.0; 
-	}
-	CModel *initial_model = new CUniformModel(CEES_Node::GetDataDimension(), lB, uB); 
-	for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
-	{
-		simulator_node[i].SetID_LocalTarget(i); 	// Also set the local target distribution here
-		if (i < CEES_Node::GetEnergyLevelNumber() -1)
-		{
-			simulator_node[i].SetBurnInPeriod(0);
-			simulator_node[i].SetHigherNodePointer(simulator_node+i+1);
-		}
-		else 
-		{
-			simulator_node[i].SetHigherNodePointer(NULL);
-			simulator_node[i].SetBurnInPeriod(BURN_IN_PERIOD);  
-		}
-		simulator_node[i].Initialize(initial_model, r); 
-	}
-	delete initial_model;
-	delete [] lB; 
-	delete [] uB; 
-	
-	// MH Proposal distribution 
+	// Local target, pointer to the higher level node, MH Proposal distribution 
 	double *sigma; 
  	for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
 	{
+		simulator_node[i].SetID_LocalTarget(i); 	// Also set the local target distribution here
+		if (i < CEES_Node::GetEnergyLevelNumber() -1)
+			simulator_node[i].SetHigherNodePointer(simulator_node+i+1);
+		else 
+			simulator_node[i].SetHigherNodePointer(NULL);
 		for (int iBlock = 0; iBlock <CEES_Node::GetNumberBlocks(); iBlock++)
 		{
 			sigma = new double[CEES_Node::GetBlockSize(iBlock)]; 
@@ -151,35 +116,54 @@ int main()
 	}
 
 	/*
- 	Burn-in and simulation
+ 	Initialize --> BurnIn --> loop for several times (Tune MH StepSize --> Build Initial Energy Ring (Simulate for N samples) --> TuneEnergyLevel) --> simulate
  	*/
-	int n=0; 
-	int nEnergyLevelTuning = 0; 
-	while (n<SIMULATION_LENGTH)
+	double *lB = new double [CEES_Node::GetDataDimension()]; 
+	double *uB = new double [CEES_Node::GetDataDimension()]; 
+	for (int i=0; i<CEES_Node::GetDataDimension(); i++)
 	{
-		// Tuning MH step sizes; 
-		/*if ( (IF_MH_TRACKING && n% MH_TRACKING_FREQUENCY) == 0)
-		{
-			for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
-				simulator_node[i].MH_Tracking_Start(MH_TRACKING_LENGTH, MH_LOW_ACC, MH_HIGH_ACC); 
-		}*/
-		// Tuning Energy level every ENERGY_LEVEL_TUNING_FREQUENCY and for at most ENERGY_LEVEL_TUNING_MAX_TIME
-		/*if (IF_ENERGY_LEVEL_TUNING && (n% ENERGY_LEVEL_TUNING_FREQUENCY) == 0 && nEnergyLevelTuning <= ENERGY_LEVEL_TUNING_MAX_TIME)
-		{
-			TuneEnergyLevels_UpdateStorage(simulator_node, storage); 
-			nEnergyLevelTuning ++; 
-		} */
-		// simulator_node[CEES_Node::GetEnergyLevelNumber()-1].draw(r, storage, MULTIPLE_TRY_MH); 
-		simulator_node[CEES_Node::GetEnergyLevelNumber()-1].draw_block(r, storage); 
-		for (int i=CEES_Node::GetEnergyLevelNumber()-2; i>=0; i--)
-		{
-			if (simulator_node[i+1].EnergyRingBuildDone())
-				// simulator_node[i].draw(r, storage, MULTIPLE_TRY_MH); 
-				simulator_node[i].draw_block(r, storage);
-		}
-		if (simulator_node[0].EnergyRingBuildDone())
-			n++; 
+		lB[i] = 0.0; 
+		uB[i] = 1.0; 
 	}
+	CModel *initial_model = new CUniformModel(CEES_Node::GetDataDimension(), lB, uB); 
+	for (int i=CEES_Node::GetEnergyLevelNumber()-1; i>=0; i--)
+	{
+		if (i == CEES_Node::GetEnergyLevelNumber()-1)
+		/* Use a uniform distribution model for initialization. */
+			simulator_node[i].Initialize(initial_model, r); 
+		else if (!simulator_node[i].Initialize(storage, r)) 
+			simulator_node[i].Initialize(initial_model, r); 
+		cout << "Node " << i << " Burn in for " << BURN_IN_PERIOD << endl; 
+		simulator_node[i].BurnIn(r, storage, BURN_IN_PERIOD, MULTIPLE_TRY_MH);
+		cout << "Node " << i << " MH StepSize Tuning for " << MH_STEPSIZE_TUNING_MAX_TIME << " beginning for " << MH_TRACKING_LENGTH << endl;  
+		simulator_node[i].MH_StepSize_Regression(MH_TRACKING_LENGTH, MH_STEPSIZE_TUNING_MAX_TIME, MH_TARGET_ACC, r, MULTIPLE_TRY_MH);
+		cout << "Node " << i << " simulate for " << ENERGY_LEVEL_TRACKING_WINDOW_LENGTH << endl; 
+		simulator_node[i].Simulate(r, storage, ENERGY_LEVEL_TRACKING_WINDOW_LENGTH, DEPOSIT_FREQUENCY, MULTIPLE_TRY_MH);  
+	}
+	
+	delete initial_model;
+	delete [] lB; 
+	delete [] uB; 
+
+	// Tuning; 	
+	int nEnergyLevelTuning = 0; 
+	while (nEnergyLevelTuning < ENERGY_LEVEL_TUNING_MAX_TIME)
+	{
+		cout << "Energy level tuning " << nEnergyLevelTuning << endl; 
+		TuneEnergyLevels_UpdateStorage(simulator_node, storage); 
+		nEnergyLevelTuning ++; 
+
+		for (int i=CEES_Node::GetEnergyLevelNumber()-1; i>=0; i--)
+		{
+			simulator_node[i].MH_StepSize_Regression(MH_TRACKING_LENGTH, MH_STEPSIZE_TUNING_MAX_TIME, MH_TARGET_ACC, r, MULTIPLE_TRY_MH);
+                	simulator_node[i].Simulate(r, storage, ENERGY_LEVEL_TRACKING_WINDOW_LENGTH, DEPOSIT_FREQUENCY, MULTIPLE_TRY_MH);
+		}
+	}
+	
+	cout << "Simulate for " << SIMULATION_LENGTH << endl; 
+	// Runing through
+	for (int i=CEES_Node::GetEnergyLevelNumber()-1; i>=0; i--)
+		simulator_node[i].Simulate(r, storage, SIMULATION_LENGTH, DEPOSIT_FREQUENCY, MULTIPLE_TRY_MH);
 
 	storage.finalize(); 		// save to hard-disk of those unsaved data
 	string file = storage.GetSummaryFileName(); 
@@ -190,22 +174,19 @@ int main()
 		cout << "Error in writing the summary file.\n"; 
 		exit(-1); 
 	}
+	oFile << "Burn In:\t" << BURN_IN_PERIOD << endl; 
+	oFile << "Tune Energy Level Window Length:\t" << ENERGY_LEVEL_TRACKING_WINDOW_LENGTH << endl; 
+	oFile << "Tune Energy Level Number:\t" << ENERGY_LEVEL_TUNING_MAX_TIME << endl;
+	oFile << "Deposit Frequency:\t"	<< DEPOSIT_FREQUENCY << endl; 
+	oFile << "MH Target Probability:\t" << MH_TARGET_ACC << endl; 
+	oFile << "MH Initial Window Length:\t" << MH_TRACKING_LENGTH << endl; 
+	oFile << "MH Window Number:\t" << MH_STEPSIZE_TUNING_MAX_TIME << endl;   
 	summary(oFile, storage); 
 	summary(oFile, simulator_node);   
-	oFile << "Burn-In:" ;
 	for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
-		oFile << "\t" << simulator_node[i].GetBurnInPeriod(); 
-	oFile << endl; 
-	for (int iBlock =0; iBlock <CEES_Node::GetNumberBlocks(); iBlock++)
-	{
-		oFile << "Step size " << iBlock << ":"; 
-		for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
-			oFile << "\t" << simulator_node[i].GetProposal(iBlock)->get_step_size(); 
-		oFile << endl; 
-	}
+		summary(oFile, simulator_node[i], i); 
 
 	oFile.close(); 
-	
 	gsl_rng_free(r); 
 }
 
