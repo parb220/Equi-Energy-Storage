@@ -85,7 +85,7 @@ int main()
 	/*
  	Set temperatures for all levels, either according to the energy levels, or use SetTemperatures(double*, int)
  	*/
-	CEES_Node::SetTemperatures_EnergyLevels(T0, HK_1/C); // (H[i+1]-H[i])/(T[i+1]-T[i]) is a constant
+	CEES_Node::SetTemperatures_EnergyLevels(T0, C, true); // (H[i+1]-H[i])/(T[i+1]-T[i]) is a constant
 
 	/* If MH block will be used */
 	if (MH_BLOCK)	

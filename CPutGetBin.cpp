@@ -12,11 +12,11 @@ CPutGetBin::CPutGetBin(int _id, int n_TotalSamples, int _capacityPut, int _capac
 	
 	capacityPut = _capacityPut; 
 	nPutUsed = 0;
-	dataPut.resize(capacityPut); 	
+	// dataPut.resize(capacityPut); 	
 	
 	capacityGet = _capacityGet; 
 	nGetUsed = capacityGet;
- 	dataGet.resize(capacityGet); 
+ 	// dataGet.resize(capacityGet); 
 
 	filename_prefix = _grandPrefix; 
 } 
@@ -28,21 +28,24 @@ CPutGetBin::~CPutGetBin()
 void CPutGetBin::SetCapacity_Put(int _capacityPut)
 {
 	capacityPut = _capacityPut; 
-	if ((int)(dataPut.size()) != capacityPut)
-		dataPut.resize(capacityPut);
+	// if ((int)(dataPut.size()) != capacityPut)
+	//	dataPut.resize(capacityPut);
 }
 
 void CPutGetBin::SetCapacity_Get(int _capacityGet)
 {
 	capacityGet = _capacityGet; 
-	if ((int)(dataGet.size()) != capacityGet)
-		dataGet.resize(capacityGet); 
+	//if ((int)(dataGet.size()) != capacityGet)
+	//	dataGet.resize(capacityGet); 
 }
 
 int CPutGetBin::DepositSample(const CSampleIDWeight &sample)
 {
-	int index =  nPutUsed; 
-	dataPut[index] = sample; 
+	int index =  nPutUsed;
+	if ((int)(dataPut.size()) < capacityPut)
+		dataPut.push_back(sample); 
+	else
+		dataPut[index] = sample; 
 	nSamplesGeneratedByFar ++; 
 	nPutUsed ++; 
 	if (nPutUsed == capacityPut)
@@ -57,7 +60,10 @@ int CPutGetBin::DepositSample(const CSampleIDWeight &sample)
 int CPutGetBin::DepositSample(const double *x, int x_d, int x_index, double x_weight)
 {
 	int index = nPutUsed; 
-	dataPut[index] = CSampleIDWeight(x, x_index, x_weight); 
+	if ((int)(dataPut.size()) < capacityPut)
+		dataPut.push_back(CSampleIDWeight(x, x_index, x_weight)); 
+	else 
+		dataPut[index] = CSampleIDWeight(x, x_index, x_weight); 
 	nSamplesGeneratedByFar ++; 
 	nPutUsed ++; 
 	if (nPutUsed == capacityPut)
@@ -138,7 +144,10 @@ bool CPutGetBin::DrawSample(double *x, int dim, int &id, double &weight, const g
 bool CPutGetBin::Fetch(const gsl_rng *r)
 {
 	if (capacityGet > nSamplesGeneratedByFar)
-		return false; 
+		return false;
+
+	if ((int)(dataGet.size()) < capacityGet)
+		dataGet.resize(capacityGet);  
 	
 	int select; 
 	vector < vector <int > > select_per_file(GetNumberDataFile()+1); 
@@ -163,7 +172,7 @@ bool CPutGetBin::Fetch(const gsl_rng *r)
 		for (int n=0; n<(int)(select_per_file[GetNumberDataFile()].size()); n++)
 		{
 			dataGet[counter] = dataPut[select_per_file[GetNumberDataFile()][n]]; 
-			counter ++; 
+			counter ++;
 		}
 	}
 	return true; 

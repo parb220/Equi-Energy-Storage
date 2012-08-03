@@ -1,3 +1,4 @@
+#include <cfloat>
 #include <cmath>
 #include "MHAdaptive.h"
 
@@ -60,27 +61,27 @@ void MHAdaptive::UpdateScale(int nGenerated, int nAccepted)
 	scale = new_scale;	
 }
 
-void MHAdaptive::UpdateRegressionParameters(int nGenerated, int nAccepted, double current_scale, int iteration)
+void MHAdaptive::EstimateRegressionParameters(const vector <int> &nGenerated, const vector <int> &nAccepted, const vector <double> &step_size)
 {
-	double p; 
+	double p, x;  
+	double denominator; 
 	// logit^(-1)(x) = exp(x)/(1+exp(x))
-	double x = a+b*log(current_scale); 
-	p = exp(x)/(1.0+exp(x)); // p = logit^(-1)(a+b*log(s))
-	A += nGenerated*p*(1.0-p); 
-	B += nGenerated*log(current_scale)*p*(1.0-p); 
-	C += nGenerated*log(current_scale)*log(current_scale)*p*(1.0-p); 
-	sum_diff_p += (nAccepted - nGenerated*p); 
-	sum_log_diff_p += log(current_scale) * (nAccepted - nGenerated*p); 
+	for (int i=0; i<(int)(step_size.size()); i++)
+	{
+		x = a+b*log(step_size[i]); 
+		p = exp(x)/(1.0+exp(x)); // p = logit^(-1)(a+b*log(s))
+		A += nGenerated[i]*p*(1.0-p); 
+		B += nGenerated[i]*log(step_size[i])*p*(1.0-p); 
+		C += nGenerated[i]*log(step_size[i])*log(step_size[i])*p*(1.0-p); 
+		sum_diff_p += (nAccepted[i] - nGenerated[i]*p); 
+		sum_log_diff_p += log(step_size[i]) * (nAccepted[i] - nGenerated[i]*p); 
 
-	if (iteration>=1)	// need at least two periods to estimate a and b
-	{
-		a += (A*sum_diff_p - B*sum_log_diff_p)/(A*C-B*B); 
-		b -= (B*sum_diff_p + C*sum_log_diff_p)/(A*C-B*B);
-	}
-	else 
-	{
-		a = a/2.0; 
-		b = b/2.0;
+		denominator = A*C-B*B; 
+		if (abs(denominator) > DBL_EPSILON)	// need at least two periods to estimate a and b
+		{
+			a += (A*sum_diff_p - B*sum_log_diff_p)/denominator; 
+			b -= (B*sum_diff_p + C*sum_log_diff_p)/denominator;
+		}
 	} 
 }
 

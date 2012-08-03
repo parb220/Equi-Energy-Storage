@@ -201,16 +201,6 @@ bool CEES_Node::SetTemperatures(double* t, int n)
 	return true;
 } 
 
-bool CEES_Node::SetTemperatures_EnergyLevels(double T0, double TK_1, double c)
-{
-	T = vector<double>(K);
-	T[0] = T0; 
-	T[K-1] = TK_1; 
-	for (int i=1; i<K-1; i++)
-		T[i] = (H[i+1]-H[i])/c;
-	return true;
-}
-
 bool CEES_Node::SetTemperatures_EnergyLevels(double T0, double TK_1)
 {
 	T = vector<double > (K); 
@@ -221,6 +211,15 @@ bool CEES_Node::SetTemperatures_EnergyLevels(double T0, double TK_1)
 		T[i] = gamma * (H[i]-H[0]); 
 	return true;  
 	
+}
+
+bool CEES_Node::SetTemperatures_EnergyLevels(double T0, double c, bool flag)
+{
+	T = vector <double>(K); 
+	T[0] = T0; 
+	for (int i=1; i<K; i++)
+		T[i] = T[i-1]+(H[i]-H[i-1])/c; 
+	return true; 
 }
 
 int CEES_Node::GetRingIndex(double e) const
@@ -337,33 +336,33 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, double ta
 	}
 }
 
-void CEES_Node::MH_StepSize_Regression(int initialPeriodL, int periodNumber, double target_prob, const gsl_rng *r, int mMH)
+void CEES_Node::MH_StepSize_Regression(int periodL, int periodNumber, double target_prob, const gsl_rng *r, int mMH)
 {
-	int nPeriod; // number of periods of observation
-        int nAccepted;
-	double step_size; 
+	vector <int> nGenerated(periodNumber, periodL); 
+        vector <int> nAccepted(periodNumber); 
+	vector <double> step_size(periodNumber);  
+	double log_increment; 
+	double log_sn; 
 
+	MHAdaptive *adaptive; 
         for (int iBlock=0; iBlock<nBlock; iBlock++)
         {
-                nPeriod = 0;
-                MHAdaptive *adaptive = new MHAdaptive(initialPeriodL, target_prob);
-		if ( (step_size = adaptive->GetStepSizeRegression()) != proposal[iBlock]->get_step_size()) 
-			proposal[iBlock]->set_step_size(step_size); 
-
-                while(nPeriod < periodNumber)
-                {
-                        nAccepted = 0;
-                        for (int iteration =0; iteration < adaptive->GetPeriodLength(); iteration ++)
-                        {
-                                if (MH_draw(r, mMH))
-                                        nAccepted ++;
-                        }
-                        adaptive->UpdateRegressionParameters(adaptive->GetPeriodLength(), nAccepted, proposal[iBlock]->get_step_size(), nPeriod);
-                        if ( (step_size = adaptive->GetStepSizeRegression()) != proposal[iBlock]->get_step_size())
-                        	proposal[iBlock]->set_step_size(step_size);
-			nPeriod ++;
-                }
-
+		log_increment = 2.0*log(1000)/periodNumber; 
+		log_sn = log(proposal[iBlock]->get_step_size()); 
+		for (int nPeriod=0; nPeriod<periodNumber; nPeriod ++)
+		{
+			nAccepted[nPeriod]=0; 
+			step_size[nPeriod] = exp(log_sn+log_increment*(nPeriod-periodNumber/2));   
+			proposal[iBlock]->set_step_size(step_size[nPeriod]); 
+			for (int iteration =0; iteration < periodL; iteration ++)
+			{
+				if (MH_draw(r, mMH))
+					nAccepted[nPeriod] ++; 
+			}
+		}
+        	adaptive = new MHAdaptive(periodL, target_prob);
+       		adaptive->EstimateRegressionParameters(nGenerated, nAccepted, step_size);
+		proposal[iBlock]->set_step_size(adaptive->GetStepSizeRegression());
                 delete adaptive;
         }
 }
