@@ -109,7 +109,7 @@ int main()
 		{
 			sigma = new double[CEES_Node::GetBlockSize(iBlock)]; 
 			for (int j=0; j<CEES_Node::GetBlockSize(iBlock); j++)
-				sigma[j] = INITIAL_SIGMA * sqrt(simulator_node[i].GetTemperature());
+				sigma[j] = INITIAL_SIGMA * sqrt(simulator_node[i].GetTemperature()/CEES_Node::GetDataDimension());
 			simulator_node[i].SetProposal(new CTransitionModel_SimpleGaussian(CEES_Node::GetBlockSize(iBlock), sigma), iBlock); 
 			delete [] sigma; 
 		}
@@ -126,6 +126,7 @@ int main()
 		uB[i] = 1.0; 
 	}
 	CModel *initial_model = new CUniformModel(CEES_Node::GetDataDimension(), lB, uB); 
+	double target_acc; 
 	for (int i=CEES_Node::GetEnergyLevelNumber()-1; i>=0; i--)
 	{
 		if (i == CEES_Node::GetEnergyLevelNumber()-1)
@@ -136,7 +137,8 @@ int main()
 		cout << "Node " << i << " Burn in for " << BURN_IN_PERIOD << endl; 
 		simulator_node[i].BurnIn(r, storage, BURN_IN_PERIOD, MULTIPLE_TRY_MH);
 		cout << "Node " << i << " MH StepSize Tuning for " << MH_STEPSIZE_TUNING_MAX_TIME << " beginning for " << MH_TRACKING_LENGTH << endl;  
-		simulator_node[i].MH_StepSize_Regression(MH_TRACKING_LENGTH, MH_STEPSIZE_TUNING_MAX_TIME, MH_TARGET_ACC, r, MULTIPLE_TRY_MH);
+		target_acc = exp(log(MH_TARGET_ACC)/(i+1)); 
+		simulator_node[i].MH_StepSize_Regression(MH_TRACKING_LENGTH, MH_STEPSIZE_TUNING_MAX_TIME, target_acc, r, MULTIPLE_TRY_MH);
 		cout << "Node " << i << " simulate for " << ENERGY_LEVEL_TRACKING_WINDOW_LENGTH << endl; 
 		simulator_node[i].Simulate(r, storage, ENERGY_LEVEL_TRACKING_WINDOW_LENGTH, DEPOSIT_FREQUENCY, MULTIPLE_TRY_MH);  
 	}
@@ -155,7 +157,8 @@ int main()
 
 		for (int i=CEES_Node::GetEnergyLevelNumber()-1; i>=0; i--)
 		{
-			simulator_node[i].MH_StepSize_Regression(MH_TRACKING_LENGTH, MH_STEPSIZE_TUNING_MAX_TIME, MH_TARGET_ACC, r, MULTIPLE_TRY_MH);
+			target_acc = exp(log(MH_TARGET_ACC)/(i+1)); 
+                	simulator_node[i].MH_StepSize_Regression(MH_TRACKING_LENGTH, MH_STEPSIZE_TUNING_MAX_TIME, target_acc, r, MULTIPLE_TRY_MH);
                 	simulator_node[i].Simulate(r, storage, ENERGY_LEVEL_TRACKING_WINDOW_LENGTH, DEPOSIT_FREQUENCY, MULTIPLE_TRY_MH);
 		}
 	}

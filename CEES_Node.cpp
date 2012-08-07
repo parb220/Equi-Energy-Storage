@@ -1,6 +1,4 @@
 #include <algorithm>
-#include <boost/thread/xtime.hpp>
-#include <boost/thread/thread.hpp>
 #include <cstring>
 #include "CModel.h"
 #include "CBoundedModel.h"
@@ -338,33 +336,49 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, double ta
 
 void CEES_Node::MH_StepSize_Regression(int periodL, int periodNumber, double target_prob, const gsl_rng *r, int mMH)
 {
-	vector <int> nGenerated(periodNumber, periodL); 
-        vector <int> nAccepted(periodNumber); 
-	vector <double> step_size(periodNumber);  
+	vector <AccStep> observation(periodNumber); 
 	double log_increment; 
-	double log_sn; 
+	double log_sn, log_min, log_max; 
+	double acc; 
 
 	MHAdaptive *adaptive; 
-        for (int iBlock=0; iBlock<nBlock; iBlock++)
-        {
-		log_increment = 2.0*log(1000)/periodNumber; 
-		log_sn = log(proposal[iBlock]->get_step_size()); 
-		for (int nPeriod=0; nPeriod<periodNumber; nPeriod ++)
-		{
-			nAccepted[nPeriod]=0; 
-			step_size[nPeriod] = exp(log_sn+log_increment*(nPeriod-periodNumber/2));   
-			proposal[iBlock]->set_step_size(step_size[nPeriod]); 
-			for (int iteration =0; iteration < periodL; iteration ++)
+	double target_step_size; 
+        	for (int iBlock=0; iBlock<nBlock; iBlock++)
+        	{
+			log_sn = log(proposal[iBlock]->get_step_size()); 
+			log_min = log_sn - log(1.0e3) > log(1.0e-3) ? log_sn - log(1.0e3) : log(1.0e-3); 
+			log_max = log_sn + log(1.0e3) < log(1.0e3) ? log_sn + log(1.0e3) : log(1.0e3); 	
+			log_increment = (log_max-log_min)/periodNumber; 
+			for (int nPeriod=0; nPeriod<periodNumber; nPeriod ++)
 			{
-				if (MH_draw(r, mMH))
-					nAccepted[nPeriod] ++; 
+				observation[nPeriod].nGenerated = periodL;
+				observation[nPeriod].nAccepted = 0; 
+				observation[nPeriod].step = log_min+log_increment*nPeriod;   // log of step_size
+				proposal[iBlock]->set_step_size(observation[nPeriod].step); 
+				for (int iteration =0; iteration < periodL; iteration ++)
+				{
+					if (MH_draw(r, mMH))
+						observation[nPeriod].nAccepted ++; 
+				}
+				acc = (double)(observation[nPeriod].nAccepted)/(double)(observation[nPeriod].nGenerated);
+				// observation::acc: logit of acc (log(acc)-log(1-acc))
+				if (acc < exp(DBL_MIN_EXP))
+					observation[nPeriod].acc = DBL_MIN_EXP; 
+				else if (1.0-acc < exp(DBL_MIN_EXP)) 
+					observation[nPeriod].acc = -DBL_MIN_EXP; 
+				else 
+					observation[nPeriod].acc = log(acc) - log(1.0-acc);  	
 			}
+        		adaptive = new MHAdaptive(periodL, target_prob);
+       			//adaptive->EstimateRegressionParameters(nGenerated, nAccepted, step_size);
+			//proposal[iBlock]->set_step_size(adaptive->GetStepSizeRegression());
+        		target_step_size = adaptive->GetStepSize(observation); 
+			if (target_step_size < 0)
+				proposal[iBlock]->set_step_size(exp(log_sn)); 	// restore the original value
+			else
+				proposal[iBlock]->set_step_size(target_step_size); 
+	        	delete adaptive;
 		}
-        	adaptive = new MHAdaptive(periodL, target_prob);
-       		adaptive->EstimateRegressionParameters(nGenerated, nAccepted, step_size);
-		proposal[iBlock]->set_step_size(adaptive->GetStepSizeRegression());
-                delete adaptive;
-        }
 }
 
 void CEES_Node::Simulate(const gsl_rng *r, CStorageHead &storage, int N, int depositFreq, int mMH)
