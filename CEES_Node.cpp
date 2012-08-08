@@ -240,12 +240,14 @@ bool CEES_Node::MH_draw(const gsl_rng *r, int mMH)
 		new_sample_flag[0] = local_flag;
 	}
 	else 
-		target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag, nBlock, blockSize);
-	bool overall_new_sample_flag = false; 
-	for (int iBlock =0; iBlock<nBlock; iBlock++)
-	{
+		target->draw(proposal, x_new, dataDim, x_current, r, new_sample_flag, nBlock, blockSize, mMH);
+	bool overall_new_sample_flag = false;
+	int iBlock = 0; 
+	while (iBlock < nBlock && !overall_new_sample_flag)
+	{ 
 		if (new_sample_flag[iBlock])
 			overall_new_sample_flag = true; 
+		iBlock ++; 
 	}
 	if (overall_new_sample_flag)
 	{
@@ -341,44 +343,44 @@ void CEES_Node::MH_StepSize_Regression(int periodL, int periodNumber, double tar
 	double log_sn, log_min, log_max; 
 	double acc; 
 
-	MHAdaptive *adaptive; 
+	MHAdaptive *adaptive;  
 	double target_step_size; 
-        	for (int iBlock=0; iBlock<nBlock; iBlock++)
-        	{
-			log_sn = log(proposal[iBlock]->get_step_size()); 
-			log_min = log_sn - log(1.0e3) > log(1.0e-3) ? log_sn - log(1.0e3) : log(1.0e-3); 
-			log_max = log_sn + log(1.0e3) < log(1.0e3) ? log_sn + log(1.0e3) : log(1.0e3); 	
-			log_increment = (log_max-log_min)/periodNumber; 
-			for (int nPeriod=0; nPeriod<periodNumber; nPeriod ++)
+       	for (int iBlock=0; iBlock<nBlock; iBlock++)
+       	{
+		log_sn = log(proposal[iBlock]->get_step_size()); 
+		log_min = log_sn - log(1.0e3) > log(1.0e-3) ? log_sn - log(1.0e3) : log(1.0e-3); 
+		log_max = log_sn + log(1.0e3) < log(1.0e3) ? log_sn + log(1.0e3) : log(1.0e3); 	
+		log_increment = (log_max-log_min)/(periodNumber-1); 
+		for (int nPeriod=0; nPeriod<periodNumber; nPeriod ++)
+		{
+			observation[nPeriod].nGenerated = periodL;
+			observation[nPeriod].nAccepted = 0; 
+			observation[nPeriod].step = log_min+log_increment*nPeriod;   // log of step_size
+			proposal[iBlock]->set_step_size(exp(observation[nPeriod].step)); 
+			for (int iteration =0; iteration < periodL; iteration ++)
 			{
-				observation[nPeriod].nGenerated = periodL;
-				observation[nPeriod].nAccepted = 0; 
-				observation[nPeriod].step = log_min+log_increment*nPeriod;   // log of step_size
-				proposal[iBlock]->set_step_size(observation[nPeriod].step); 
-				for (int iteration =0; iteration < periodL; iteration ++)
-				{
-					if (MH_draw(r, mMH))
-						observation[nPeriod].nAccepted ++; 
-				}
-				acc = (double)(observation[nPeriod].nAccepted)/(double)(observation[nPeriod].nGenerated);
-				// observation::acc: logit of acc (log(acc)-log(1-acc))
-				if (acc < exp(DBL_MIN_EXP))
-					observation[nPeriod].acc = DBL_MIN_EXP; 
-				else if (1.0-acc < exp(DBL_MIN_EXP)) 
-					observation[nPeriod].acc = -DBL_MIN_EXP; 
-				else 
-					observation[nPeriod].acc = log(acc) - log(1.0-acc);  	
+				if (MH_draw(r, mMH))
+					observation[nPeriod].nAccepted ++; 
 			}
-        		adaptive = new MHAdaptive(periodL, target_prob);
-       			//adaptive->EstimateRegressionParameters(nGenerated, nAccepted, step_size);
-			//proposal[iBlock]->set_step_size(adaptive->GetStepSizeRegression());
-        		target_step_size = adaptive->GetStepSize(observation); 
-			if (target_step_size < 0)
-				proposal[iBlock]->set_step_size(exp(log_sn)); 	// restore the original value
-			else
-				proposal[iBlock]->set_step_size(target_step_size); 
-	        	delete adaptive;
+			acc = (double)(observation[nPeriod].nAccepted)/(double)(observation[nPeriod].nGenerated);
+			// observation::acc: logit of acc (log(acc)-log(1-acc))
+			if (acc < DBL_EPSILON)
+				observation[nPeriod].acc = log(DBL_EPSILON); 
+			else if (1.0-acc < DBL_EPSILON) 
+				observation[nPeriod].acc = -log(DBL_EPSILON); 
+			else 
+				observation[nPeriod].acc = log(acc) - log(1.0-acc);  	
 		}
+        	adaptive = new MHAdaptive(periodL, target_prob);
+       		//adaptive->EstimateRegressionParameters(nGenerated, nAccepted, step_size);
+		//proposal[iBlock]->set_step_size(adaptive->GetStepSizeRegression());
+        	target_step_size = adaptive->GetStepSize(observation); 
+		if (target_step_size < 0)
+			proposal[iBlock]->set_step_size(exp(log_sn)); 	// restore the original value
+		else
+			proposal[iBlock]->set_step_size(target_step_size); 
+	        delete adaptive;
+	}
 }
 
 void CEES_Node::Simulate(const gsl_rng *r, CStorageHead &storage, int N, int depositFreq, int mMH)

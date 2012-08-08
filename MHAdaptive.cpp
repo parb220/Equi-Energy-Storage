@@ -7,10 +7,7 @@ using namespace std;
 MHAdaptive::MHAdaptive(int _periodL, double _targetProb, double _a, double _b)
 {
 	// Target acceptance rate and its lower- and upper-bounds
-	mid = _targetProb; 
-	log_mid = log(mid); 
-	lower_bound = exp(log_mid*2.0); 
-	upper_bound = exp(log_mid*0.5); 
+	ResetTargetAcceptanceRate(_targetProb); 
 
 	period = _periodL; 
         best_scale = scale = 1.0; 
@@ -89,39 +86,70 @@ void MHAdaptive::EstimateRegressionParameters(vector <AccStep> &observation)
 
 bool comparator (const AccStep &l, const AccStep &r) { return l.acc < r.acc; }
 
+void MHAdaptive::ResetTargetAcceptanceRate(double _targetProb)
+{
+        mid = _targetProb;
+        log_mid = log(mid);
+        lower_bound = exp(log_mid*2.0);
+        upper_bound = exp(log_mid*0.5);
+}
+
 double MHAdaptive::GetStepSize(vector <AccStep> &observation)
 {
-	// sorting acceptance rate and its company step_size
+	// sorting logit(acceptance rate) 
 	stable_sort(observation.begin(), observation.end(), &comparator); 
-	double small_step = observation[observation.size()/4].step;	// 25% percentile  
-	double big_step = observation[observation.size()*3/4].step; 	// 75% percentile
+	double small_step = observation[observation.size()/10].step;	// 10% percentile  
+	double big_step = observation[observation.size()*9/10].step; 	// 90% percentile
 	
 	// position of lower_bound and upper_bound
-	AccStep target_observation;
-	target_observation.acc = log(mid)-log(1.0-mid);
-	//AccStep lower_target_observation, upper_target_observation;  
-	//lower_target_observation.acc = lower_bound; 
-	//upper_target_observation.acc = upper_bound; 
-	vector <AccStep>::iterator target_lower = std::lower_bound(observation.begin(), observation.end(), target_observation, &comparator); 
-	vector <AccStep>::iterator target_upper = std::upper_bound(observation.begin(), observation.end(), target_observation, &comparator); 
-	if (target_lower >= observation.end())
-		return big_step;  
-	else if (target_upper <= observation.begin())
-		return small_step;  
+	AccStep target_observation, lower_observation, upper_observation; 
+	vector <AccStep>::iterator target_lower, target_upper, lower_lower, upper_upper; 
+	bool continue_flag = true;
+	while (continue_flag && fabs(upper_bound-lower_bound)>DBL_EPSILON && lower_bound>DBL_EPSILON && upper_bound<1.0-DBL_EPSILON)
+	{ 
+		target_observation.acc = log(mid)-log(1.0-mid);
+		lower_observation.acc = log(lower_bound) - log(1.0-lower_bound); 
+		upper_observation.acc = log(upper_bound) - log(1.0-upper_bound); 
+		target_lower = std::lower_bound(observation.begin(), observation.end(), target_observation, &comparator); 
+		target_upper = std::upper_bound(observation.begin(), observation.end(), target_observation, &comparator); 
+		lower_lower = std::lower_bound(observation.begin(), observation.end(), lower_observation, &comparator); 
+		upper_upper = std::upper_bound(observation.begin(), observation.end(), upper_observation, &comparator);
+		
+		if (lower_lower >= observation.end())
+			ResetTargetAcceptanceRate(lower_bound); 
+		else if (upper_upper <= observation.begin())
+			ResetTargetAcceptanceRate(upper_bound); 
+		else if (target_lower >= observation.end())
+			ResetTargetAcceptanceRate(exp((log(lower_bound)+log(mid))/2)); 
+		else if (target_upper <= observation.begin())
+			ResetTargetAcceptanceRate(exp((log(upper_bound)+log(mid))/2)); 
+		else 
+			continue_flag = false; 
+	}
+	if (lower_bound<=DBL_EPSILON)	// lower_bound of acceptance is still too high
+		return exp(big_step); 
+	else if (upper_bound>=1.0-DBL_EPSILON) 	// upper bound of acceptance is still too low
+		return exp(small_step); 
 	else 
 	{
-		EstimateRegressionParameters(observation); 
-		return GetStepSizeRegression(); 
-		// double average=0; 
-		// for (int i=target_lower-observation.begin(); i<=target_upper-observation.begin(); i++)
-		//	average += observation[i].step; 
-		// average /= (target_upper-target_lower+1); 
-		// return exp(average); 
+		int begin_ = target_lower > observation.begin() ? target_lower-observation.begin() : 0; 
+		int end_ = target_upper < observation.end() ? target_upper-observation.begin(): (int)(observation.size()-1); 
+		double average =0; 
+		for (int i=begin_; i<=end_; i++)
+			average += observation[i].step; 
+		average = average/(end_-begin_+1); 
+		return exp(average); 
 	}
 }
 
-double MHAdaptive::GetStepSizeRegression() const
+double MHAdaptive::GetStepSizeRegression(int flag) const
 {
-	double logit = log(mid) -log(1.0-mid); 
+	double logit; 
+	if (flag <0)
+		logit = log(lower_bound) - log(1.0-lower_bound); 
+	else if (flag > 0)
+		logit = log(upper_bound) - log(1.0-upper_bound); 
+	else 
+		logit = log(mid) -log(1.0-mid); 
 	return exp((logit-a)/b); 
 }
