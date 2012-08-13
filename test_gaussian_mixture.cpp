@@ -16,6 +16,8 @@
 #include <cstring>
 #include <ctime>
 #include <cmath>
+#include <cstdlib>
+#include <unistd.h>
 #include <gsl/gsl_rng.h>
 #include "equi_energy_setup_constant.h"
 #include "CMixtureModel.h"
@@ -34,13 +36,60 @@ using namespace std;
 bool Configure_GaussianMixtureModel_File(CMixtureModel &, const string); 
 bool TuneEnergyLevels_UpdateStorage(CEES_Node *, CStorageHead &);
 
-int main()
+void usage(int arc, char **argv)
 {
+	cout << "usage: " << argv[0] << " "; 
+	cout << "-d <dimension> \n"; 
+	cout << "-f <files of the target model> \n"; 
+	cout << "-p <probability of equi-energy jump> \n"; 
+	cout << "-h <energy bound of the highest energy level>\n"; 
+	cout << "-l <simulation length>\n"; 
+	cout << "? this message.\n";
+}
+
+
+int main(int argc, char **argv)
+{
+	// default setting, which is obtained from .h file
+	string filename_base = "../equi_energy_generic/gaussian_mixture_model."; 
+	int data_dimension = DATA_DIMENSION; 
+	double pee = PEE;  
+	double h_k_1 = HK_1; 
+	int simulation_length =SIMULATION_LENGTH; 
+
+	// parse command line
+	int opt; 
+	while ( (opt = getopt(argc, argv, "d:f:p:h:l:?")) != -1)
+	{
+		switch (opt) 
+		{
+			case 'f':
+				filename_base = string(optarg); break; 
+			case 'd':
+				data_dimension = atoi(optarg); break; 	
+			case 'p':
+				pee = atof(optarg); break; 			
+			case 'h':
+				h_k_1 = atof(optarg); break; 
+			case 'l':
+				simulation_length = atoi(optarg); break; 
+			case '?': 
+			{
+				usage(argc, argv); 
+				exit(-1); 
+			}	
+			default:
+			{ 
+				usage(argc, argv); 
+				return (-1); 
+			}
+		}
+	}
+	
 	/*
  	Initialize the target distribution as a Gaussian mixture model;
 	Mean Sigma and Weight are stored in files
   	*/
-	string filename_base = "../equi_energy_generic/gaussian_mixture_model."; 
 	CMixtureModel target; 
 	if (!Configure_GaussianMixtureModel_File(target, filename_base))
 	{
@@ -63,7 +112,7 @@ int main()
 	int get_marker = 10000;	// Keep get_marker samples in memory for draw 
 	int put_marker = 10000;	// Dump every put_marker samples
 	int number_bins = NUMBER_ENERGY_LEVEL * NUMBER_ENERGY_LEVEL;   
-	CSampleIDWeight::SetDataDimension(DATA_DIMENSION);	// Data dimension for storage (put and get) 
+	CSampleIDWeight::SetDataDimension(data_dimension);	// Data dimension for storage (put and get) 
 	CStorageHead storage(run_id, get_marker, put_marker, number_bins, string("/home/f1hxw01/equal_energy_hw/equi_energy_storage_data/")); 
 	storage.makedir();
 		
@@ -71,15 +120,15 @@ int main()
  	Initialize an equi_energy object for sampling
  	*/
 	CEES_Node::SetEnergyLevelNumber(NUMBER_ENERGY_LEVEL); 		// Number of energy levels; 
-	CEES_Node::SetEquiEnergyJumpProb(PEE);				// Probability for equal energy jump
-	CEES_Node::SetDataDimension(DATA_DIMENSION); 		// Data dimension for simulation
+	CEES_Node::SetEquiEnergyJumpProb(pee);				// Probability for equal energy jump
+	CEES_Node::SetDataDimension(data_dimension); 		// Data dimension for simulation
 	CEES_Node::ultimate_target = &target;			// Ultimate target distribution
 
 	/*
  	Set energy levels according to the geometric progression given H0 and H[K-1]
 	Alternatively, could use SetEnergyLevels(double*, int) 
  	*/
-	CEES_Node::SetEnergyLevels_GeometricProgression(H0, HK_1); 
+	CEES_Node::SetEnergyLevels_GeometricProgression(H0, h_k_1); 
 	CEES_Node::InitializeMinMaxEnergy(ENERGY_TRACKING_NUMBER); // Initialize min_energy and if_tune_energy_level for tune_energy_level in the future; 
 	
 	/*
@@ -164,10 +213,10 @@ int main()
 		nEnergyLevelTuning ++; 
 	}
 	
-	cout << "Simulate for " << SIMULATION_LENGTH << endl; 
+	cout << "Simulate for " << simulation_length<< endl; 
 	// Runing through
 	for (int i=CEES_Node::GetEnergyLevelNumber()-1; i>=0; i--)
-		simulator_node[i].Simulate(r, storage, SIMULATION_LENGTH, DEPOSIT_FREQUENCY, MULTIPLE_TRY_MH);
+		simulator_node[i].Simulate(r, storage, simulation_length, DEPOSIT_FREQUENCY, MULTIPLE_TRY_MH);
 
 	storage.finalize(); 		// save to hard-disk of those unsaved data
 	string file = storage.GetSummaryFileName(); 

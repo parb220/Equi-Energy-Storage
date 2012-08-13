@@ -15,7 +15,7 @@ bool TuneEnergyLevels_UpdateStorage(CEES_Node *simulator, CStorageHead &storage)
 	if (new_H0 < CEES_Node::H[0] || new_HK_1 > CEES_Node::H[CEES_Node::K-1])
 	{
 		CEES_Node::SetEnergyLevels_GeometricProgression(new_H0, new_HK_1);
-		CEES_Node::SetTemperatures_EnergyLevels(T0, C, true);
+		CEES_Node::SetTemperatures_EnergyLevels(CEES_Node::T[0], C, true);
 		CEES_Node::SetTargetAcceptanceRate(MH_TARGET_ACC); 
 	
 	// Re-adjust local target distribution and process samples that have been generated; 
