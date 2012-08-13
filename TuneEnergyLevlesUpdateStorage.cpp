@@ -5,16 +5,18 @@
 
 using namespace std;
 
-void TuneEnergyLevels_UpdateStorage(CEES_Node *simulator, CStorageHead &storage)
+bool TuneEnergyLevels_UpdateStorage(CEES_Node *simulator, CStorageHead &storage)
 {
-	double new_H0 = CEES_Node::min_energy[0];
-	double new_HK_1 = CEES_Node::max_energy[0] < 1.0e3 ?CEES_Node::max_energy[0]: 1.0e3;  
+	double new_H0 = CEES_Node::min_energy[0] < CEES_Node::H[0] ? CEES_Node::min_energy[0] : CEES_Node::H[0];
+	// double new_HK_1 = CEES_Node::max_energy[0] < 1.0e3 ?CEES_Node::max_energy[0]: 1.0e3;  
+	double new_HK_1 = CEES_Node::max_energy[0] < 1.0e3 ?CEES_Node::max_energy[0]: 1.0e3; 
 
 	// Re-determine and adjust energy level and temperature levels
-	if (new_H0 < CEES_Node::H[0] || new_HK_1 < CEES_Node::H[CEES_Node::K-1])
+	if (new_H0 < CEES_Node::H[0] || new_HK_1 > CEES_Node::H[CEES_Node::K-1])
 	{
 		CEES_Node::SetEnergyLevels_GeometricProgression(new_H0, new_HK_1);
 		CEES_Node::SetTemperatures_EnergyLevels(T0, C, true);
+		CEES_Node::SetTargetAcceptanceRate(MH_TARGET_ACC); 
 	
 	// Re-adjust local target distribution and process samples that have been generated; 
 		storage.CreateTemporaryBin(); 
@@ -24,5 +26,7 @@ void TuneEnergyLevels_UpdateStorage(CEES_Node *simulator, CStorageHead &storage)
 			simulator[i].AssignSamplesGeneratedSoFar(storage); 
 		}
 		storage.ClearTemporaryBin(); 
+		return true; 
 	}
+	return false; 
 } 

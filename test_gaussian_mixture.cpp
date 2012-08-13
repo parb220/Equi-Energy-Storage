@@ -32,7 +32,7 @@
 using namespace std;
 
 bool Configure_GaussianMixtureModel_File(CMixtureModel &, const string); 
-void TuneEnergyLevels_UpdateStorage(CEES_Node *, CStorageHead &);
+bool TuneEnergyLevels_UpdateStorage(CEES_Node *, CStorageHead &);
 
 int main()
 {
@@ -87,6 +87,11 @@ int main()
  	*/
 	CEES_Node::SetTemperatures_EnergyLevels(T0, C, true); // (H[i+1]-H[i])/(T[i+1]-T[i]) is a constant
 
+	/* Set target acceptance rate for each level's MH, (H(i+1)-H(i))/(targetAcc(i+1)-targetAcc(i)) = c */
+	CEES_Node::SetTargetAcceptanceRate(MH_TARGET_ACC);
+	// MH_TARGET_ACC:	target acceptance rate for the lowest energy level
+	// 1.0:			target acceptance rate for the highest energy level 
+
 	/* If MH block will be used */
 	if (MH_BLOCK)	
 		CEES_Node::SetBlockSize(NULL, CEES_Node::GetDataDimension()); 
@@ -109,7 +114,7 @@ int main()
 		{
 			sigma = new double[CEES_Node::GetBlockSize(iBlock)]; 
 			for (int j=0; j<CEES_Node::GetBlockSize(iBlock); j++)
-				sigma[j] = INITIAL_SIGMA * sqrt(simulator_node[i].GetTemperature()/CEES_Node::GetDataDimension());
+				sigma[j] = INITIAL_SIGMA * exp(log(simulator_node[i].GetTemperature()));
 			simulator_node[i].SetProposal(new CTransitionModel_SimpleGaussian(CEES_Node::GetBlockSize(iBlock), sigma), iBlock); 
 			delete [] sigma; 
 		}
@@ -126,7 +131,6 @@ int main()
 		uB[i] = 1.0; 
 	}
 	CModel *initial_model = new CUniformModel(CEES_Node::GetDataDimension(), lB, uB); 
-	double target_acc; 
 	for (int i=CEES_Node::GetEnergyLevelNumber()-1; i>=0; i--)
 	{
 		if (i == CEES_Node::GetEnergyLevelNumber()-1)
@@ -137,8 +141,7 @@ int main()
 		cout << "Node " << i << " Burn in for " << BURN_IN_PERIOD << endl; 
 		simulator_node[i].BurnIn(r, storage, BURN_IN_PERIOD, MULTIPLE_TRY_MH);
 		cout << "Node " << i << " MH StepSize Tuning for " << MH_STEPSIZE_TUNING_MAX_TIME << " beginning for " << MH_TRACKING_LENGTH << endl;  
-		target_acc = exp(log(MH_TARGET_ACC)/(i+1)); 
-		simulator_node[i].MH_StepSize_Regression(MH_TRACKING_LENGTH, MH_STEPSIZE_TUNING_MAX_TIME, target_acc, r, MULTIPLE_TRY_MH);
+		simulator_node[i].MH_StepSize_Estimation(MH_TRACKING_LENGTH, MH_STEPSIZE_TUNING_MAX_TIME, r, MULTIPLE_TRY_MH);
 		cout << "Node " << i << " simulate for " << ENERGY_LEVEL_TRACKING_WINDOW_LENGTH << endl; 
 		simulator_node[i].Simulate(r, storage, ENERGY_LEVEL_TRACKING_WINDOW_LENGTH, DEPOSIT_FREQUENCY, MULTIPLE_TRY_MH);  
 	}
@@ -152,15 +155,13 @@ int main()
 	while (nEnergyLevelTuning < ENERGY_LEVEL_TUNING_MAX_TIME)
 	{
 		cout << "Energy level tuning " << nEnergyLevelTuning << endl; 
-		TuneEnergyLevels_UpdateStorage(simulator_node, storage); 
-		nEnergyLevelTuning ++; 
-
+		TuneEnergyLevels_UpdateStorage(simulator_node, storage);
 		for (int i=CEES_Node::GetEnergyLevelNumber()-1; i>=0; i--)
 		{
-			target_acc = exp(log(MH_TARGET_ACC)/(i+1)); 
-                	simulator_node[i].MH_StepSize_Regression(MH_TRACKING_LENGTH, MH_STEPSIZE_TUNING_MAX_TIME, target_acc, r, MULTIPLE_TRY_MH);
+               		simulator_node[i].MH_StepSize_Estimation(MH_TRACKING_LENGTH, MH_STEPSIZE_TUNING_MAX_TIME, r, MULTIPLE_TRY_MH);
                 	simulator_node[i].Simulate(r, storage, ENERGY_LEVEL_TRACKING_WINDOW_LENGTH, DEPOSIT_FREQUENCY, MULTIPLE_TRY_MH);
 		}
+		nEnergyLevelTuning ++; 
 	}
 	
 	cout << "Simulate for " << SIMULATION_LENGTH << endl; 
