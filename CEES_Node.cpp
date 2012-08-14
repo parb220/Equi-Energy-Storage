@@ -221,17 +221,6 @@ bool CEES_Node::SetTemperatures_EnergyLevels(double T0, double c, bool flag)
 	return true; 
 }
 
-bool CEES_Node::SetTargetAcceptanceRate(double p0, double pK_1)
-{
-	targetAcc = vector<double>(K); 
-	targetAcc[0]= p0; 
-	targetAcc[K-1] = pK_1; 
-	double c = (H[K-1]-H[0])/(targetAcc[K-1]-targetAcc[0]); 
-	for (int i=1; i<K-1; i++)
-		targetAcc[i] = targetAcc[0]+(H[i]-H[0])/c; 
-	return true; 
-}
-
 bool CEES_Node::SetTargetAcceptanceRate(double p0)
 {
 	targetAcc = vector<double>(K, p0); 

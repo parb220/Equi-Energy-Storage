@@ -1,11 +1,10 @@
-#include "equi_energy_setup_constant.h"
 #include "CEES_Node.h"
 #include "CStorageHead.h"
 #include "CBoundedModel.h"
 
 using namespace std;
 
-bool TuneEnergyLevels_UpdateStorage(CEES_Node *simulator, CStorageHead &storage)
+bool TuneEnergyLevels_UpdateStorage(CEES_Node *simulator, CStorageHead &storage, double c_factor, double mh_target_acc)
 {
 	double new_H0 = CEES_Node::min_energy[0] < CEES_Node::H[0] ? CEES_Node::min_energy[0] : CEES_Node::H[0];
 	// double new_HK_1 = CEES_Node::max_energy[0] < 1.0e3 ?CEES_Node::max_energy[0]: 1.0e3;  
@@ -15,8 +14,8 @@ bool TuneEnergyLevels_UpdateStorage(CEES_Node *simulator, CStorageHead &storage)
 	if (new_H0 < CEES_Node::H[0] || new_HK_1 > CEES_Node::H[CEES_Node::K-1])
 	{
 		CEES_Node::SetEnergyLevels_GeometricProgression(new_H0, new_HK_1);
-		CEES_Node::SetTemperatures_EnergyLevels(CEES_Node::T[0], C, true);
-		CEES_Node::SetTargetAcceptanceRate(MH_TARGET_ACC); 
+		CEES_Node::SetTemperatures_EnergyLevels(CEES_Node::T[0], c_factor, true);
+		CEES_Node::SetTargetAcceptanceRate(mh_target_acc); 
 	
 	// Re-adjust local target distribution and process samples that have been generated; 
 		storage.CreateTemporaryBin(); 

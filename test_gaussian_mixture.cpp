@@ -34,7 +34,7 @@
 using namespace std;
 
 bool Configure_GaussianMixtureModel_File(CMixtureModel &, const string); 
-bool TuneEnergyLevels_UpdateStorage(CEES_Node *, CStorageHead &);
+bool TuneEnergyLevels_UpdateStorage(CEES_Node *, CStorageHead &, double, double);
 
 void usage(int arc, char **argv)
 {
@@ -44,6 +44,7 @@ void usage(int arc, char **argv)
 	cout << "-p <probability of equi-energy jump> \n"; 
 	cout << "-h <energy bound of the highest energy level>\n"; 
 	cout << "-l <simulation length>\n"; 
+	cout << "-c <C factor to determine temperature bounds according to energy bounds>\n";
 	cout << "? this message.\n";
 }
 
@@ -56,6 +57,8 @@ int main(int argc, char **argv)
 	double pee = PEE;  
 	double h_k_1 = HK_1; 
 	int simulation_length =SIMULATION_LENGTH; 
+	double c_factor = C; 
+	double mh_target_acc = MH_TARGET_ACC; 
 
 	// parse command line
 	int opt; 
@@ -73,6 +76,8 @@ int main(int argc, char **argv)
 				h_k_1 = atof(optarg); break; 
 			case 'l':
 				simulation_length = atoi(optarg); break; 
+			case 'c':
+				c_factor = atof(optarg); 
 			case '?': 
 			{
 				usage(argc, argv); 
@@ -134,12 +139,9 @@ int main(int argc, char **argv)
 	/*
  	Set temperatures for all levels, either according to the energy levels, or use SetTemperatures(double*, int)
  	*/
-	CEES_Node::SetTemperatures_EnergyLevels(T0, C, true); // (H[i+1]-H[i])/(T[i+1]-T[i]) is a constant
+	CEES_Node::SetTemperatures_EnergyLevels(T0, c_factor, true); // (H[i+1]-H[i])/(T[i+1]-T[i]) is a constant
 
-	/* Set target acceptance rate for each level's MH, (H(i+1)-H(i))/(targetAcc(i+1)-targetAcc(i)) = c */
-	CEES_Node::SetTargetAcceptanceRate(MH_TARGET_ACC);
-	// MH_TARGET_ACC:	target acceptance rate for the lowest energy level
-	// 1.0:			target acceptance rate for the highest energy level 
+	CEES_Node::SetTargetAcceptanceRate(mh_target_acc);
 
 	/* If MH block will be used */
 	if (MH_BLOCK)	
@@ -204,7 +206,7 @@ int main(int argc, char **argv)
 	while (nEnergyLevelTuning < ENERGY_LEVEL_TUNING_MAX_TIME)
 	{
 		cout << "Energy level tuning " << nEnergyLevelTuning << endl; 
-		TuneEnergyLevels_UpdateStorage(simulator_node, storage);
+		TuneEnergyLevels_UpdateStorage(simulator_node, storage, c_factor, mh_target_acc);
 		for (int i=CEES_Node::GetEnergyLevelNumber()-1; i>=0; i--)
 		{
                		simulator_node[i].MH_StepSize_Estimation(MH_TRACKING_LENGTH, MH_STEPSIZE_TUNING_MAX_TIME, r, MULTIPLE_TRY_MH);
@@ -231,7 +233,7 @@ int main(int argc, char **argv)
 	oFile << "Tune Energy Level Window Length:\t" << ENERGY_LEVEL_TRACKING_WINDOW_LENGTH << endl; 
 	oFile << "Tune Energy Level Number:\t" << ENERGY_LEVEL_TUNING_MAX_TIME << endl;
 	oFile << "Deposit Frequency:\t"	<< DEPOSIT_FREQUENCY << endl; 
-	oFile << "MH Target Probability:\t" << MH_TARGET_ACC << endl; 
+	oFile << "MH Target Probability:\t" << mh_target_acc << endl; 
 	oFile << "MH Initial Window Length:\t" << MH_TRACKING_LENGTH << endl; 
 	oFile << "MH Window Number:\t" << MH_STEPSIZE_TUNING_MAX_TIME << endl;   
 	summary(oFile, storage); 
