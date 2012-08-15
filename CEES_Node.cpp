@@ -316,31 +316,43 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, const gsl
 // Adapt from Dan's Adaptive Scaling
 {
 	int nPeriod; // number of periods of observation
+	int nGenerated = initialPeriodL; // length of observation
 	int nAccepted;  
+	
+	MHAdaptive **adaptive = new MHAdaptive *[nBlock];  
 
+	// Initialize	
 	for (int iBlock=0; iBlock<nBlock; iBlock++)
+		adaptive[iBlock] = new MHAdaptive(targetAcc[this->id], proposal[iBlock]->get_step_size());
+	
+	// Tune for a number of perioldNumber times,
+	nPeriod = 0; 	
+	while(nPeriod < periodNumber)
 	{
-		nPeriod = 0; 
-		MHAdaptive *adaptive = new MHAdaptive(initialPeriodL, targetAcc[this->id]); 	
-		
-		while(nPeriod < periodNumber)
+		// MH draw for  
+		nAccepted = 0; 
+		for (int iteration =0; iteration < nGenerated; iteration ++)
 		{
-			nAccepted = 0; 
-			for (int iteration =0; iteration < adaptive->GetPeriodLength(); iteration ++)
-			{
-				if (MH_draw(r, mMH))
-					nAccepted ++; 
-			}
-			adaptive->UpdateScale(adaptive->GetPeriodLength(), nAccepted); 
-			if (adaptive->GetScale() != 1.0)
-				proposal[iBlock]->tune_step_size(adaptive->GetScale()); 
-			nPeriod ++; 
+			if (MH_draw(r, mMH))
+				nAccepted ++; 
 		}
 
-		if (adaptive->GetScale() != adaptive->GetBestScale() && adaptive->GetBestScale()!=1.0)
-			proposal[iBlock]->tune_step_size(adaptive->GetBestScale());
-		delete adaptive; 
+		// Update Scale
+		for (int iBlock=0; iBlock<nBlock; iBlock++)
+		{
+			if (adaptive[iBlock]->UpdateScale(nGenerated, nAccepted)) 
+				proposal[iBlock]->set_step_size(adaptive[iBlock]->GetScale()); 
+		}
+		nGenerated *=2; 
+		nPeriod ++; 
 	}
+	for (int iBlock =0; iBlock < nBlock; iBlock++)
+	{
+		if (fabs(adaptive[iBlock]->GetBestScale()-adaptive[iBlock]->GetScale()) > 1.0e-6)
+			proposal[iBlock]->set_step_size(adaptive[iBlock]->GetBestScale()); 
+		delete adaptive[iBlock]; 
+	}
+	delete [] adaptive; 
 }
 
 void CEES_Node::MH_StepSize_Estimation(int periodL, int periodNumber, const gsl_rng *r, int mMH)

@@ -192,7 +192,8 @@ int main(int argc, char **argv)
 		cout << "Node " << i << " Burn in for " << BURN_IN_PERIOD << endl; 
 		simulator_node[i].BurnIn(r, storage, BURN_IN_PERIOD, MULTIPLE_TRY_MH);
 		cout << "Node " << i << " MH StepSize Tuning for " << MH_STEPSIZE_TUNING_MAX_TIME << " beginning for " << MH_TRACKING_LENGTH << endl;  
-		simulator_node[i].MH_StepSize_Estimation(MH_TRACKING_LENGTH, MH_STEPSIZE_TUNING_MAX_TIME, r, MULTIPLE_TRY_MH);
+		// simulator_node[i].MH_StepSize_Estimation(MH_TRACKING_LENGTH, MH_STEPSIZE_TUNING_MAX_TIME, r, MULTIPLE_TRY_MH);	// based on regression
+		simulator_node[i].MH_StepSize_Tune(20, 10, r, MULTIPLE_TRY_MH);	// based on Dan's adaptive strategy 
 		cout << "Node " << i << " simulate for " << ENERGY_LEVEL_TRACKING_WINDOW_LENGTH << endl; 
 		simulator_node[i].Simulate(r, storage, ENERGY_LEVEL_TRACKING_WINDOW_LENGTH, DEPOSIT_FREQUENCY, MULTIPLE_TRY_MH);  
 	}
@@ -209,7 +210,8 @@ int main(int argc, char **argv)
 		TuneEnergyLevels_UpdateStorage(simulator_node, storage, c_factor, mh_target_acc);
 		for (int i=CEES_Node::GetEnergyLevelNumber()-1; i>=0; i--)
 		{
-               		simulator_node[i].MH_StepSize_Estimation(MH_TRACKING_LENGTH, MH_STEPSIZE_TUNING_MAX_TIME, r, MULTIPLE_TRY_MH);
+               		// simulator_node[i].MH_StepSize_Estimation(MH_TRACKING_LENGTH, MH_STEPSIZE_TUNING_MAX_TIME, r, MULTIPLE_TRY_MH);	// based on regression
+               		simulator_node[i].MH_StepSize_Tune(20, 10, r, MULTIPLE_TRY_MH); 	// based on Dan's adaptive strategy
                 	simulator_node[i].Simulate(r, storage, ENERGY_LEVEL_TRACKING_WINDOW_LENGTH, DEPOSIT_FREQUENCY, MULTIPLE_TRY_MH);
 		}
 		nEnergyLevelTuning ++; 
