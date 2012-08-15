@@ -8,7 +8,7 @@ bool TuneEnergyLevels_UpdateStorage(CEES_Node *simulator, CStorageHead &storage,
 {
 	double new_H0 = CEES_Node::min_energy[0] < CEES_Node::H[0] ? CEES_Node::min_energy[0] : CEES_Node::H[0];
 	// double new_HK_1 = CEES_Node::max_energy[0] < 1.0e3 ?CEES_Node::max_energy[0]: 1.0e3;  
-	double new_HK_1 = CEES_Node::max_energy[0] < 1.0e3 ?CEES_Node::max_energy[0]: 1.0e3; 
+	double new_HK_1 = CEES_Node::max_energy[0] < CEES_Node::H[CEES_Node::K-1] ?CEES_Node::max_energy[0]: CEES_Node::H[CEES_Node::K-1]; 
 
 	// Re-determine and adjust energy level and temperature levels
 	if (new_H0 < CEES_Node::H[0] || new_HK_1 > CEES_Node::H[CEES_Node::K-1])
