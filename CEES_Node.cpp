@@ -355,11 +355,6 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, const gsl
 	delete [] adaptive; 
 }
 
-void CEES_Node::MH_StepSize_Estimation(int periodL, int periodNumber, const gsl_rng *r, int mMH)
-{
-		MH_StepSize_Regression(periodL, periodNumber, r, mMH); 
-}
-
 void CEES_Node::MH_StepSize_Regression(int periodL, int periodNumber, const gsl_rng *r, int mMH)
 {
 	vector <AccStep> observation(periodNumber); 
@@ -370,7 +365,7 @@ void CEES_Node::MH_StepSize_Regression(int periodL, int periodNumber, const gsl_
 	double *target_step_size = new double[nBlock]; 
        	for (int iBlock=0; iBlock<nBlock; iBlock++)
        	{
-       		adaptive = new MHAdaptive(periodL, targetAcc[this->id]);
+       		adaptive = new MHAdaptive(targetAcc[this->id], proposal[iBlock]->get_step_size());
 		log_sn = log(proposal[iBlock]->get_step_size());
 		log_min = log_sn - log(1.0e3) > log(1.0e-3) ? log_sn - log(1.0e3) : log(1.0e-3); 
 		log_max = log_sn + log(1.0e3) < log(1.0e3) ? log_sn + log(1.0e3) : log(1.0e3);
