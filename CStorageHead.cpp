@@ -97,6 +97,16 @@ vector <CSampleIDWeight> CStorageHead::RetrieveSamplesSequentially(bool if_clear
 	return samples; 
 }
 
+void CStorageHead::DisregardHistorySamples(int bin_id)
+{
+	bin[bin_id].DisregardHistorySamples(); 
+}
+
+void CStorageHead::ClearDepositDrawHistory(int bin_id)
+{
+	bin[bin_id].ClearDepositDrawHistory(); 
+}
+
 void CStorageHead::CreateTemporaryBin()
 {
 	if ((int)(bin.size()) < 2*number_bins)

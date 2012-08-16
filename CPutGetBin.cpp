@@ -214,6 +214,21 @@ int CPutGetBin::GetNumberDataFile(bool flag) const
 		return GetNumberDataFile(); 
 }
 
+void CPutGetBin::DisregardHistorySamples()
+{
+	int nFile = GetNumberDataFile(); 
+	string file_name; 
+	stringstream convert; 
+	
+	for (int iFile =1; iFile<=nFile; iFile++)
+	{
+		convert.str(std::string());
+                convert << id << "." << iFile; 
+		file_name = filename_prefix + convert.str();	
+		remove(file_name.c_str());
+	}
+}
+
 vector <CSampleIDWeight> CPutGetBin::RetrieveSamplesSequentially(bool if_clear_old_bin)
 {
 	vector <CSampleIDWeight> samples; 
