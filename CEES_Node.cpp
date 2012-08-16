@@ -13,9 +13,6 @@ double CEES_Node::pee;
 int CEES_Node::dataDim; 
 CModel * CEES_Node::ultimate_target;
 vector <double> CEES_Node::targetAcc;
-
-vector <double > CEES_Node::min_energy; 
-vector <double > CEES_Node::max_energy; 
 int CEES_Node:: min_max_energy_capacity; 
 
 int CEES_Node::nBlock; 
