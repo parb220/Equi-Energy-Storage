@@ -54,25 +54,6 @@ bool CStorageHead::empty(int _bin_id)
 		return false; 
 }
 
-string CStorageHead::GetSummaryFileName() const
-{
-	stringstream convert; 
-	convert << run_id; 
-	return filename_base + convert.str() + ".summary"; 
-}
-
-ofstream & summary(ofstream &of, const CStorageHead &head)
-{
-	of << "Get Marker:\t" << head.get_marker << endl; 
-	of << "Put Marker:\t" << head.put_marker << endl; 
-	of << "Number of Bins: \t" << head.number_bins << endl; 
-	for (int i=0; i<head.number_bins; i++)
-	{
-		of << head.bin[i].GetBinID() << ":\t" << head.bin[i].GetNumberSamplesGeneratedByFar() << "\t" << head.bin[i].GetNumberDataFile(true) << endl; 
-	}	
-	return of;	
-}
-
 bool CStorageHead::makedir()
 {
 	stringstream str; 
@@ -165,3 +146,21 @@ void CStorageHead::ClearTemporaryBin()
 	if ((int)(bin.size()) > number_bins)
 		bin.erase(bin.begin()+number_bins, bin.end()); 
 }
+
+void CStorageHead::restore(const CParameterPackage &parameter)
+{
+	for (int i=0; i<number_bins; i++)
+		bin[i].restore(parameter.NumberSamplesGeneratedByFar(i)); 
+}
+
+void CParameterPackage::TraceStorageHead(const CStorageHead &storage)
+{
+       	number_samples_generated_by_far.resize(storage.number_bins);
+	number_files_by_far.resize(storage.number_bins); 
+        for (int i=0; i<storage.number_bins; i++)
+	{
+                number_samples_generated_by_far[i] = storage.bin[i].GetNumberSamplesGeneratedByFar();
+		number_files_by_far[i] = storage.bin[i].GetNumberDataFile(true); 
+	}
+}
+

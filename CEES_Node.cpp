@@ -404,31 +404,6 @@ void CEES_Node::Simulate(const gsl_rng *r, CStorageHead &storage, int N, int dep
 	}
 }
 
-ofstream & summary(ofstream &of, const CEES_Node *simulator)
-{
-	of << "Data Dimension:\t" << CEES_Node::dataDim << endl; 
-	of << "Number of Energy Levels:\t" << CEES_Node::K << endl; 
-	of << "Energy Thresholds:"; 
-	for (int i=0; i<CEES_Node::K; i++)
-		of << "\t" << CEES_Node::H[i];
-	of << endl; 
-	of << "Temperatures:"; 
-	for (int i=0; i<CEES_Node::K; i++)
-		of << "\t" << CEES_Node::T[i]; 
-	of << endl; 
-	of << "Prob Equi-Jump:\t" << CEES_Node::pee << endl; 
-	return of;
-}
-
-ofstream & summary(ofstream &of, const CEES_Node &simulator, int i)
-{
-	of << "Step size " << i << ":"; 
-	for (int iBlock =0; iBlock < CEES_Node::nBlock; iBlock ++)
-		of << "\t" << simulator.GetProposal(iBlock)->get_step_size(); 
-	of << endl; 
-	return of; 
-}
-
 void CEES_Node::UpdateMinMaxEnergy(double _new_energy)
 {
 	vector<double>::iterator position; 
@@ -523,5 +498,44 @@ void CEES_Node::AssignSamplesGeneratedSoFar(CStorageHead &storage)
 		storage_bin_id = BinID(bin_id); 
 		storage.Consolidate(storage_bin_id); 
 	}
+}
+
+void CParameterPackage::TraceSimulator(const CEES_Node &simulator)
+{
+	int id = simulator.id; 
+	if (id == 0)
+	{
+		if ((int)h.size() < CEES_Node::K)
+			h.resize(CEES_Node::K);
+        	for (int i=0; i<CEES_Node::K; i++)
+			h[i] = CEES_Node::H[i];
+	
+		if ((int)t.size() < CEES_Node::K)
+			t.resize(CEES_Node::K);
+		for (int i=0; i<CEES_Node::K; i++)
+        		t[i] = CEES_Node::T[i];
+	}
+        
+	if ((int)x_current.size() < CEES_Node::K)
+        	x_current.resize(CEES_Node::K) ;
+	if ((int)energy_index_current.size() < CEES_Node::K)
+       		energy_index_current.resize(CEES_Node::K);
+	if ((int)scale.size() < CEES_Node::K)
+        	scale.resize(CEES_Node::K); 
+
+	if ((int)x_current[id].size() < CEES_Node::dataDim)
+		x_current[id].resize(CEES_Node::dataDim); 
+	for (int j=0; j<CEES_Node::dataDim; j++)
+		x_current[id][j] = simulator.x_current[j]; 
+        energy_index_current[id] = simulator.ring_index_current;
+	if ((int)scale[id].size() < CEES_Node::dataDim)
+		scale[id].resize(CEES_Node::dataDim); 
+	int dim_cum_sum =0; 
+        for (int iBlock=0; iBlock<CEES_Node::nBlock; iBlock++)
+        {
+                for (int j=0; j<CEES_Node::blockSize[iBlock]; j++)
+                        scale[id][j+dim_cum_sum] = simulator.proposal[iBlock]->get_step_size();
+		dim_cum_sum += CEES_Node::blockSize[iBlock]; 
+        }
 }
 

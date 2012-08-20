@@ -200,6 +200,30 @@ bool CPutGetBin::ReadFromOneFile(int i, int &counter, const vector <int> &index)
 	return true; 
 }
 
+bool CPutGetBin::restore(int _nSamplesGeneratedByFar)
+{
+	nSamplesGeneratedByFar = _nSamplesGeneratedByFar; 
+	if (nSamplesGeneratedByFar%capacityPut > 0)
+	{
+		fstream iFile;
+       	 	string file_name;
+        	stringstream convert;
+
+        	convert.str(std::string());
+        	convert << id << "." << GetNumberDataFile()+1;
+        	file_name = filename_prefix + convert.str();
+		iFile.open(file_name.c_str(), ios::in|ios::binary);
+        	if (!iFile)
+                	return false;
+		if ((int)dataPut.size() < nSamplesGeneratedByFar%capacityPut)
+			dataPut.resize(nSamplesGeneratedByFar%capacityPut); 
+		for (int n=0; n<nSamplesGeneratedByFar%capacityPut; n++)
+			read(iFile, &(dataPut[n])); 
+		nPutUsed = nSamplesGeneratedByFar%capacityPut; 
+	}
+	return false; 
+}
+
 void CPutGetBin::finalize()
 {
 	if (nPutUsed > 0)
