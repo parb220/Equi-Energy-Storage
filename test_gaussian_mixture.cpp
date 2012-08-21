@@ -254,8 +254,8 @@ int main(int argc, char **argv)
 			cout << "Node " << i << " Burn in for " << parameter.burn_in_period << endl; 
 			simulator_node[i].BurnIn(r, storage, parameter.burn_in_period, parameter.multiple_try_mh);
 			cout << "Node " << i << " MH StepSize Tuning for " << parameter.mh_stepsize_tuning_max_time << " beginning for " << parameter.mh_tracking_length << endl;  
-			simulator_node[i].MH_StepSize_Regression(parameter.mh_tracking_length, parameter.mh_stepsize_tuning_max_time, r, parameter.multiple_try_mh);	// based on regression
-			//simulator_node[i].MH_StepSize_Tune(20, 10, r, MULTIPLE_TRY_MH);	// based on Dan's adaptive strategy 
+			// simulator_node[i].MH_StepSize_Regression(parameter.mh_tracking_length, parameter.mh_stepsize_tuning_max_time, r, parameter.multiple_try_mh);	// based on regression
+			simulator_node[i].MH_StepSize_Tune(parameter.mh_tracking_length, parameter.mh_stepsize_tuning_max_time, r, parameter.multiple_try_mh);	// based on Dan's adaptive strategy 
 			cout << "Node " << i << " simulate for " << parameter.energy_level_tracking_window_length << endl; 
 			simulator_node[i].Simulate(r, storage, parameter.energy_level_tracking_window_length, parameter.deposit_frequency, parameter.multiple_try_mh);  
 		}

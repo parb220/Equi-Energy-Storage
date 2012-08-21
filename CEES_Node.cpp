@@ -340,7 +340,7 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, const gsl
 			if (adaptive[iBlock]->UpdateScale(nGenerated, nAccepted)) 
 				proposal[iBlock]->set_step_size(adaptive[iBlock]->GetScale()); 
 		}
-		nGenerated *=2; 
+		//nGenerated *=2; 
 		nPeriod ++; 
 	}
 	for (int iBlock =0; iBlock < nBlock; iBlock++)
