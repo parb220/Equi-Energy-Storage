@@ -177,7 +177,7 @@ bool CParameterPackage::WriteSummaryFile(string file_name)
 	for (int i=0; i<number_energy_level; i++)
 		oFile << "\t" << t[i]; 
 	oFile << endl; 
-	oFile << "Prob Equi-Jump:\t" << pee; 
+	oFile << "Prob Equi-Jump:\t" << pee << endl;  
 	for (int i=0; i<number_energy_level; i++)
 	{
 		oFile << "Step size " << i << ":"; 
