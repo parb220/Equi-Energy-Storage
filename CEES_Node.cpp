@@ -5,6 +5,7 @@
 #include "CEES_Node.h"
 #include "CStorageHead.h"
 #include "MHAdaptive.h"
+#include "CTransitionModel_SimpleGaussian.h"
 
 int CEES_Node::K;
 vector <double> CEES_Node::H; 
@@ -84,6 +85,7 @@ void CEES_Node::Initialize(const gsl_rng *r)
 	target->draw(x_current, dataDim, r); 
 	energy_current = OriginalEnergy(x_current, dataDim); 
 	ring_index_current = GetRingIndex(energy_current);
+	UpdateMinMaxEnergy(energy_current); 
 }
 
 void CEES_Node::Initialize(CModel * model, const gsl_rng *r)
@@ -94,6 +96,7 @@ void CEES_Node::Initialize(CModel * model, const gsl_rng *r)
 		model->draw(x_current, dataDim, r); 
 	energy_current = OriginalEnergy(x_current, dataDim); 
 	ring_index_current = GetRingIndex(energy_current); 
+	UpdateMinMaxEnergy(energy_current); 
 }
 
 void CEES_Node::Initialize(const double *x, int x_d)
@@ -101,6 +104,7 @@ void CEES_Node::Initialize(const double *x, int x_d)
 	memcpy(x_current, x, sizeof(double)*dataDim); 
 	energy_current = OriginalEnergy(x_current, dataDim); 
 	ring_index_current = GetRingIndex(energy_current); 
+	UpdateMinMaxEnergy(energy_current); 
 }
 
 bool CEES_Node::Initialize(CStorageHead &storage, const gsl_rng *r)
@@ -119,6 +123,7 @@ bool CEES_Node::Initialize(CStorageHead &storage, const gsl_rng *r)
 			memcpy(x_current, x_new, sizeof(double)*dataDim);
 			energy_current = OriginalEnergy(x_current, dataDim); 
 			ring_index_current = GetRingIndex(energy_current);  
+			UpdateMinMaxEnergy(energy_current); 
 			return true;
 		}
 	}
@@ -131,6 +136,7 @@ bool CEES_Node::Initialize(CStorageHead &storage, const gsl_rng *r)
                         memcpy(x_current, x_new, sizeof(double)*dataDim);
                         energy_current = OriginalEnergy(x_current, dataDim);
                         ring_index_current = GetRingIndex(energy_current);
+			UpdateMinMaxEnergy(energy_current); 
                         return true;
                 }
 	}
@@ -234,6 +240,7 @@ int CEES_Node::GetRingIndex(double e) const
 	return K-1;
 }
 
+
 bool CEES_Node::MH_draw(const gsl_rng *r, int mMH)
 {
 	vector <bool> new_sample_flag(nBlock, false); 
@@ -312,44 +319,51 @@ void CEES_Node::BurnIn(const gsl_rng *r, CStorageHead &storage, int B, int mMH)
 void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, const gsl_rng *r, int mMH)
 // Adapt from Dan's Adaptive Scaling
 {
-	int nPeriod; // number of periods of observation
+	// Save current state, because (1) tuning is based on a mode, and (2) after tuning is done, simulator will resume from the current state
+	double *x_current_saved = new double [dataDim]; 
+	memcpy(x_current_saved, x_current, dataDim);
+	
 	int nGenerated = initialPeriodL; // length of observation
 	int nAccepted;  
 	
-	MHAdaptive **adaptive = new MHAdaptive *[nBlock];  
-
-	// Initialize	
+	MHAdaptive *adaptive; 
+	CTransitionModel_SimpleGaussian *individual_proposal = new CTransitionModel_SimpleGaussian(1); 
+	  
+	// Tune for a number of perioldNumber times
+	int dim_lum_sum =0;
+	bool new_sample_flag = false;  
 	for (int iBlock=0; iBlock<nBlock; iBlock++)
-		adaptive[iBlock] = new MHAdaptive(targetAcc[this->id], proposal[iBlock]->get_step_size());
+	{
+		for (int iDim=0; iDim<blockSize[iBlock]; iDim++)
+		{
+			adaptive = new MHAdaptive(targetAcc[this->id], proposal[iBlock]->get_step_size(iDim)); 
+			individual_proposal->set_step_size(proposal[iBlock]->get_step_size(iDim));
+			for (int nPeriod=0; nPeriod<periodNumber; nPeriod++)
+			{	
+				// tuning starts from a mode of the target distribution
+				ultimate_target->GetMode(x_current, dataDim); 
+				nAccepted = 0; 
+				// draw samples 
+				for (int iteration=0; iteration<nGenerated; iteration ++)
+				{
+					target->draw_block(dim_lum_sum+iDim, 1, individual_proposal, x_new, dataDim, x_current, r, new_sample_flag, mMH); 
+					if (new_sample_flag)
+						nAccepted ++; 
+				}
+				// Update scale 
+				if(adaptive->UpdateScale(nGenerated, nAccepted)) 
+					individual_proposal->set_step_size(adaptive->GetScale()); 
+			}
+			proposal[iBlock]->set_step_size(adaptive->GetBestScale(), iDim); 
+		}
+		delete adaptive;
+		dim_lum_sum += blockSize[iBlock]; 
+	}
 	
-	// Tune for a number of perioldNumber times,
-	nPeriod = 0; 	
-	while(nPeriod < periodNumber)
-	{
-		// MH draw for  
-		nAccepted = 0; 
-		for (int iteration =0; iteration < nGenerated; iteration ++)
-		{
-			if (MH_draw(r, mMH))
-				nAccepted ++; 
-		}
-
-		// Update Scale
-		for (int iBlock=0; iBlock<nBlock; iBlock++)
-		{
-			if (adaptive[iBlock]->UpdateScale(nGenerated, nAccepted)) 
-				proposal[iBlock]->set_step_size(adaptive[iBlock]->GetScale()); 
-		}
-		//nGenerated *=2; 
-		nPeriod ++; 
-	}
-	for (int iBlock =0; iBlock < nBlock; iBlock++)
-	{
-		if (fabs(adaptive[iBlock]->GetBestScale()-adaptive[iBlock]->GetScale()) > 1.0e-6)
-			proposal[iBlock]->set_step_size(adaptive[iBlock]->GetBestScale()); 
-		delete adaptive[iBlock]; 
-	}
-	delete [] adaptive; 
+	delete individual_proposal; 
+	// restore x_current
+	memcpy(x_current, x_current_saved, dataDim); 
+	delete []x_current_saved; 
 }
 
 void CEES_Node::MH_StepSize_Regression(int periodL, int periodNumber, const gsl_rng *r, int mMH)
@@ -534,7 +548,7 @@ void CParameterPackage::TraceSimulator(const CEES_Node &simulator)
         for (int iBlock=0; iBlock<CEES_Node::nBlock; iBlock++)
         {
                 for (int j=0; j<CEES_Node::blockSize[iBlock]; j++)
-                        scale[id][j+dim_cum_sum] = simulator.proposal[iBlock]->get_step_size();
+                        scale[id][j+dim_cum_sum] = simulator.proposal[iBlock]->get_step_size(j);
 		dim_cum_sum += CEES_Node::blockSize[iBlock]; 
         }
 }
