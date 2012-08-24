@@ -331,7 +331,10 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, const gsl
 	  
 	// Tune for a number of perioldNumber times
 	int dim_lum_sum =0;
-	bool new_sample_flag = false;  
+	bool new_sample_flag = false; 
+	ultimate_target->GetMode(x_current, dataDim); 
+	double log_prob_mode = target->log_prob(x_current, dataDim);  
+	double log_prob_x; 
 	for (int iBlock=0; iBlock<nBlock; iBlock++)
 	{
 		for (int iDim=0; iDim<blockSize[iBlock]; iDim++)
@@ -342,11 +345,12 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, const gsl
 			{	
 				// tuning starts from a mode of the target distribution
 				ultimate_target->GetMode(x_current, dataDim); 
-				nAccepted = 0; 
+				nAccepted = 0;
+				log_prob_x = log_prob_mode;  
 				// draw samples 
 				for (int iteration=0; iteration<nGenerated; iteration ++)
 				{
-					target->draw_block(dim_lum_sum+iDim, 1, individual_proposal, x_new, dataDim, x_current, r, new_sample_flag, mMH); 
+					log_prob_x = target->draw_block(dim_lum_sum+iDim, 1, individual_proposal, x_new, dataDim, x_current,log_prob_x, r, new_sample_flag, mMH); 
 					if (new_sample_flag)
 						nAccepted ++; 
 				}
