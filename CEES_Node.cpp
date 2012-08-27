@@ -295,7 +295,10 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, const gsl
 				{
 					log_prob_x = target->draw_block(dim_lum_sum+iDim, 1, individual_proposal, x_new, dataDim, new_sample_flag, r, x_current,log_prob_x, mMH); 
 					if (new_sample_flag)
+					{
+						memcpy(x_current, x_new, dataDim*sizeof(double));
 						nAccepted ++; 
+					}
 				}
 				// Update scale 
 				if(adaptive->UpdateScale(nGenerated, nAccepted)) 
