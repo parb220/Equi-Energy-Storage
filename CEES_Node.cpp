@@ -80,21 +80,11 @@ int CEES_Node::BinID(double e) const
 	return id*K+energy_index; 
 }
 
-void CEES_Node::Initialize(const gsl_rng *r)
-{
-	bool if_new_sample;  
-	target->draw(x_current, dataDim, if_new_sample, r); 
-	energy_current = OriginalEnergy(x_current, dataDim); 
-	log_prob_current = -(energy_current > GetEnergy() ? energy_current : GetEnergy())/GetTemperature(); 
-	ring_index_current = GetRingIndex(energy_current);
-	UpdateMinMaxEnergy(energy_current); 
-}
-
-void CEES_Node::Initialize(CModel * model, const gsl_rng *r)
+void CEES_Node::Initialize(const gsl_rng *r, CModel *model)
 {
 	bool if_new_sample; 
 	if (model == NULL)
-		Initialize(r); 
+		target->draw(x_current, dataDim, if_new_sample, r);  
 	else
 		model->draw(x_current, dataDim, if_new_sample, r); 
 	energy_current = OriginalEnergy(x_current, dataDim); 
@@ -195,11 +185,11 @@ bool CEES_Node::MH_draw(const gsl_rng *r, int mMH)
 	if (nBlock <= 1)
 	{
 		bool local_flag;
-		target->draw(proposal[0], x_new, dataDim, x_current, log_prob_current, r, local_flag, mMH);
+		target->draw(proposal[0], x_new, dataDim, local_flag, r, x_current, log_prob_current, mMH);
 		new_sample_flag[0] = local_flag;
 	}
 	else 
-		target->draw(proposal, x_new, dataDim, x_current, log_prob_current, r, new_sample_flag, nBlock, blockSize, mMH);
+		target->draw(proposal, x_new, dataDim, new_sample_flag, r, x_current, log_prob_current, nBlock, blockSize, mMH);
 	bool overall_new_sample_flag = false;
 	int iBlock = 0; 
 	while (iBlock < nBlock && !overall_new_sample_flag)
@@ -303,7 +293,7 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, const gsl
 				// draw samples 
 				for (int iteration=0; iteration<nGenerated; iteration ++)
 				{
-					log_prob_x = target->draw_block(dim_lum_sum+iDim, 1, individual_proposal, x_new, dataDim, x_current,log_prob_x, r, new_sample_flag, mMH); 
+					log_prob_x = target->draw_block(dim_lum_sum+iDim, 1, individual_proposal, x_new, dataDim, new_sample_flag, r, x_current,log_prob_x, mMH); 
 					if (new_sample_flag)
 						nAccepted ++; 
 				}
