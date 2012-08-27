@@ -262,9 +262,10 @@ void CParameterPackage::SetCurrentState(const gsl_rng *r)
                 uB[i] = uniform_ub;
         }
 	CUniformModel initial_model(data_dimension, lB, uB); 
+	bool if_new_sample; 
 	for (int i=0; i<number_energy_level; i++)
 	{
-		initial_model.draw(x_array, data_dimension, r); 
+		initial_model.draw(x_array, data_dimension, if_new_sample, r); 
 		x_current[i].resize(data_dimension); 
 		for (int j=0; j<data_dimension; j++)
 			x_current[i][j] = x_array[j]; 

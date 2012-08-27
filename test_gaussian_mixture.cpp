@@ -36,7 +36,7 @@
 using namespace std;
 
 bool Configure_GaussianMixtureModel_File(CMixtureModel &, const string); 
-bool TuneEnergyLevels_UpdateStorage(CEES_Node *, CStorageHead &, double, double);
+bool TuneEnergyLevels_UpdateStorage(CEES_Node *, CStorageHead &, CParameterPackage &);
 
 void usage(int arc, char **argv)
 {
@@ -265,7 +265,7 @@ int main(int argc, char **argv)
 		while (nEnergyLevelTuning < parameter.energy_level_tuning_max_time) 
 		{
 			cout << "Energy level tuning " << nEnergyLevelTuning << endl; 
-			TuneEnergyLevels_UpdateStorage(simulator_node, storage, parameter.c_factor, parameter.mh_target_acc);
+			TuneEnergyLevels_UpdateStorage(simulator_node, storage, parameter);
 			for (int i=parameter.number_energy_level-1; i>=0; i--)
 			{
                			simulator_node[i].MH_StepSize_Regression(parameter.mh_tracking_length, parameter.mh_stepsize_tuning_max_time, r, parameter.multiple_try_mh);	// based on regression
