@@ -108,16 +108,13 @@ bool CEES_Node::Initialize(CStorageHead &storage, const gsl_rng *r)
                 return false;
         int bin_id_next_level; 
         int x_id;
-        double x_weight;
 	for (int try_id = id; try_id >= 0; try_id --)
 	{
 		bin_id_next_level = next_level->BinID(try_id); 
         	if (!storage.empty(bin_id_next_level))
 		{
-			storage.DrawSample(bin_id_next_level, x_new, dataDim, x_id, x_weight, r);
-			memcpy(x_current, x_new, sizeof(double)*dataDim);
+			storage.DrawSample(bin_id_next_level, x_current, dataDim, x_id, energy_current, r);
 			//energy_current = OriginalEnergy(x_current, dataDim); 
-			energy_current = x_weight; // x_weight: Original Energy
 			log_prob_current = -(energy_current > GetEnergy() ? energy_current : GetEnergy())/GetTemperature();
 			ring_index_current = GetRingIndex(energy_current);  
 			UpdateMinMaxEnergy(energy_current); 
@@ -129,10 +126,8 @@ bool CEES_Node::Initialize(CStorageHead &storage, const gsl_rng *r)
 		bin_id_next_level = next_level->BinID(try_id);
                 if (!storage.empty(bin_id_next_level))
                 {
-                        storage.DrawSample(bin_id_next_level, x_new, dataDim, x_id, x_weight, r);
-                        memcpy(x_current, x_new, sizeof(double)*dataDim);
+                        storage.DrawSample(bin_id_next_level, x_current, dataDim, x_id, energy_current, r);
                        	//energy_current = OriginalEnergy(x_current, dataDim);
-                       	energy_current = x_weight; 
 			log_prob_current = -(energy_current > GetEnergy() ? energy_current : GetEnergy())/GetTemperature();
                         ring_index_current = GetRingIndex(energy_current);
 			UpdateMinMaxEnergy(energy_current); 
@@ -265,8 +260,17 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, const gsl
 	// Save current state, because (1) tuning is based on a mode, and (2) after tuning is done, simulator will resume from the current state
 	double *x_current_saved = new double [dataDim]; 
 	memcpy(x_current_saved, x_current, dataDim);
+
+	ultimate_target->GetMode(x_current, dataDim); 
+        double log_prob_mode = target->log_prob(x_current, dataDim); 
+	int dim_lum_sum=0; 
+	for (int iBlock=0; iBlock<nBlock; iBlock++)
+	{
+		proposal[iBlock]->Tune(targetAcc[this->id], initialPeriodL, periodNumber, r, target, x_current, dataDim, log_prob_mode, dim_lum_sum, blockSize[iBlock]); 
+		dim_lum_sum += blockSize[iBlock];  
+	}
 	
-	int nGenerated = initialPeriodL; // length of observation
+	/*int nGenerated = initialPeriodL; // length of observation
 	int nAccepted;  
 	
 	MHAdaptive *adaptive; 
@@ -310,46 +314,10 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, const gsl
 		dim_lum_sum += blockSize[iBlock]; 
 	}
 	
-	delete individual_proposal; 
+	delete individual_proposal; */
 	// restore x_current
 	memcpy(x_current, x_current_saved, dataDim); 
 	delete []x_current_saved; 
-}
-
-void CEES_Node::MH_StepSize_Regression(int periodL, int periodNumber, const gsl_rng *r, int mMH)
-{
-	vector <AccStep> observation(periodNumber); 
-	double log_increment; 
-	double log_sn, log_min, log_max; 
-
-	MHAdaptive *adaptive;  
-	double *target_step_size = new double[nBlock]; 
-       	for (int iBlock=0; iBlock<nBlock; iBlock++)
-       	{
-       		adaptive = new MHAdaptive(targetAcc[this->id], proposal[iBlock]->get_step_size());
-		log_sn = log(proposal[iBlock]->get_step_size());
-		log_min = log_sn - log(1.0e3) > log(1.0e-3) ? log_sn - log(1.0e3) : log(1.0e-3); 
-		log_max = log_sn + log(1.0e3) < log(1.0e3) ? log_sn + log(1.0e3) : log(1.0e3);
-		log_increment = (log_max-log_min)/(periodNumber-1); 
-		for (int nPeriod=0; nPeriod<periodNumber; nPeriod ++)
-		{
-			observation[nPeriod].nGenerated = periodL;
-			observation[nPeriod].nAccepted = 0; 
-			observation[nPeriod].step = log_min+log_increment*nPeriod;   // log of step_size
-			proposal[iBlock]->set_step_size(exp(observation[nPeriod].step)); 
-			for (int iteration =0; iteration < periodL; iteration ++)
-			{
-				if (MH_draw(r, mMH))
-					observation[nPeriod].nAccepted ++; 
-			}
-			observation[nPeriod].acc = (double)(observation[nPeriod].nAccepted)/(double)(observation[nPeriod].nGenerated);
-		}
-		adaptive->EstimateRegressionParameters(observation); 
-		target_step_size[iBlock] = adaptive->GetStepSizeRegression(); 
-		proposal[iBlock]->set_step_size(target_step_size[iBlock]); 
-	       	delete adaptive;
-	}
-	delete [] target_step_size; 
 }
 
 void CEES_Node::Simulate(const gsl_rng *r, CStorageHead &storage, int N, int depositFreq, int mMH)

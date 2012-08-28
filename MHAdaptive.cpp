@@ -59,76 +59,6 @@ bool MHAdaptive::UpdateScale(int nGenerated, int nAccepted)
 		return false; 	
 }
 
-void MHAdaptive::EstimateRegressionParameters(const vector < AccStep > &observation )
-{
-	double b_reserved = b; 
-	double a_reserved = a; 
-	
-	double a_new = a; 
-	double b_new = b; 
-	double p, x;  
- 	double denominator; 
-	double sum_diff_p, sum_log_diff_p; 
-	double A, B, C; 
-	int count = 0; 
-	bool denominator_continue = true; 
-	while (denominator_continue && (count == 0 || fabs(a_new-a) > 1.0e-6 || fabs(b_new-b) > 1.0e-6))
-	{
-		a = a_new; 
-		b = b_new; 
-		A = B = C = sum_diff_p = sum_log_diff_p = 0.0; 
-		for (int i=0; i<(int)(observation.size()); i++)
-		{
-			x = a+b*observation[i].step;  
-			p = exp(x)/(1.0+exp(x)); // p = logit^(-1)(a+b*log(s))
-			A += observation[i].nGenerated*p*(1.0-p); 
-			B += observation[i].nGenerated*observation[i].step*p*(1.0-p); 
-			C += observation[i].nGenerated*observation[i].step*observation[i].step*p*(1.0-p); 
-			sum_diff_p += observation[i].nAccepted - observation[i].nGenerated*p; 
-			sum_log_diff_p += observation[i].step * (observation[i].nAccepted - observation[i].nGenerated*p); 
-		}
-
-		denominator = A*C-B*B; 
-		if (denominator > 1.0e-6)
-		{
-			a_new = a + (A*sum_diff_p - B*sum_log_diff_p)/denominator; 
-			b_new = b - (B*sum_diff_p + C*sum_log_diff_p)/denominator;
-			count ++;  
-		}
-		else
-			denominator_continue = false; 
-	}
-	if ( denominator_continue )
-	{
-		a = a_new; 
-		b = b_new;
-		return; 
-	}
-	else
-	{
-		a = a_reserved; 
-		b = b_reserved; 
-	 	count = 0; 
-		a_new = a; 
-		while (count == 0 || fabs(a_new -a) > 1.0e-6)
-		{
-			a = a_new; 
-			sum_diff_p = A = 0.0; 
-	 		for (int i=0; i<(int)(observation.size()); i++)
-                	{
-                        	x = a+b*observation[i].step;
-                        	p = exp(x)/(1.0+exp(x)); // p = logit^(-1)(a+b*log(s))
-				sum_diff_p += observation[i].nAccepted - observation[i].nGenerated*p;
-				A += observation[i].nGenerated*p*(1.0-p);
-			}
-			a_new = a + (sum_diff_p-(a+3.0)/25.0)/(A+1.0/25.0); 
-			count ++;
-		}
-		a = a_new;
-		return; 
-	}
-}	
-
 bool comparator (const AccStep &l, const AccStep &r) { return l.acc < r.acc; }
 
 void MHAdaptive::ResetTargetAcceptanceRate(double _targetProb)
@@ -137,16 +67,4 @@ void MHAdaptive::ResetTargetAcceptanceRate(double _targetProb)
         log_mid = log(mid);
         lower_bound = exp(log_mid*2.0);
         upper_bound = exp(log_mid*0.5);
-}
-
-double MHAdaptive::GetStepSizeRegression(int flag) const
-{
-	double logit; 
-	if (flag <0)
-		logit = log(lower_bound) - log(1.0-lower_bound); 
-	else if (flag > 0)
-		logit = log(upper_bound) - log(1.0-upper_bound); 
-	else 
-		logit = log(mid) -log(1.0-mid); 
-	return exp((logit-a)/b); 
 }
