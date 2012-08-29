@@ -22,6 +22,7 @@ CSampleIDWeight::CSampleIDWeight()
 	data = NULL; 
 	id = 0; 
 	weight = 0; 
+	if_weight_set = false; 
 }
 
 CSampleIDWeight::CSampleIDWeight(const double *x, int _dim, int _id, double _weight)
@@ -31,6 +32,7 @@ CSampleIDWeight::CSampleIDWeight(const double *x, int _dim, int _id, double _wei
 	memcpy(data, x, sizeof(double)*dim); 
 	id = _id; 
 	weight = _weight; 
+	if_weight_set = true; 
 }
 
 /*CSampleIDWeight::CSampleIDWeight(const vector <double> &x, int _id, double _weight)
@@ -47,6 +49,7 @@ CSampleIDWeight::CSampleIDWeight(const CSampleIDWeight &right)
 	memcpy(data, right.data, sizeof(double)*dim);
 	id = right.id; 
 	weight = right.weight;
+	if_weight_set = right.if_weight_set; 
 }
 
 CSampleIDWeight::~CSampleIDWeight()
@@ -63,6 +66,7 @@ CSampleIDWeight & CSampleIDWeight:: operator = (const CSampleIDWeight &right)
 	memcpy(data, right.data, sizeof(double)*dim); 
 	id = right.id; 
 	weight = right.weight;	
+	if_weight_set = right.if_weight_set
 	return *this;
 }
 
