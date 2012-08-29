@@ -70,6 +70,11 @@ CSampleIDWeight & CSampleIDWeight:: operator = (const CSampleIDWeight &right)
 	return *this;
 }
 
+void CSampleIDWeight:: PartialCopy(const CSampleWeight &right, int offset, int length)
+{
+	memcpy(data+offset, right.data+offset, sizeof(double)*length); 
+}
+
 istream & read (istream & input_stream, CSampleIDWeight *x)
 {
 	int dim; 
