@@ -414,7 +414,7 @@ void CEES_Node::AssignSamplesGeneratedSoFar(CStorageHead &storage)
 		{
 			for (int i=0; i<(int)(samples.size()); i++)
 			{
-				samples[i].GetData(x_new, dataDim, id, energy);
+				samples[i].CopyData(x_new, dataDim, id, energy);
 				// energy = OriginalEnergy(x_new, dataDim); 
 				ring_index = GetRingIndex(energy); 
 				new_storage_bin_id = BinID(ring_index); 
