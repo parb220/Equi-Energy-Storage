@@ -61,9 +61,9 @@ int CPutGetBin::DepositSample(const double *x, int x_d, int x_index, double x_we
 {
 	int index = nPutUsed; 
 	if ((int)(dataPut.size()) < capacityPut)
-		dataPut.push_back(CSampleIDWeight(x, x_d, x_index, x_weight)); 
+		dataPut.push_back(CSampleIDWeight(x, x_index, x_weight)); 
 	else 
-		dataPut[index] = CSampleIDWeight(x, x_d, x_index, x_weight); 
+		dataPut[index] = CSampleIDWeight(x, x_index, x_weight); 
 	nSamplesGeneratedByFar ++; 
 	nPutUsed ++; 
 	if (nPutUsed == capacityPut)
@@ -190,13 +190,9 @@ bool CPutGetBin::ReadFromOneFile(int i, int &counter, const vector <int> &index)
         iFile.open(file_name.c_str(), ios::in|ios::binary);
         if (!iFile)
         	return false;
-	// determine the dimension of CSampleIDWeight
-	CSampleIDWeight temp_data; 
-	read(iFile, &temp_data); 
-
         for (int n=0; n<(int)(index.size()); n++)
         {
-        	iFile.seekg(temp_data.GetSize_Data()*index[n], ios_base::beg);
+        	iFile.seekg(CSampleIDWeight::GetSize_Data()*index[n], ios_base::beg);
                 read(iFile, &(dataGet[counter]));
                 counter ++;
         }
