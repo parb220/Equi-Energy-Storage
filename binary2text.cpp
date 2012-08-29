@@ -17,7 +17,6 @@ int main(int argc, char* argv[])
 		cout << argv[0] << " data_dimension input_filename(binary) output_filename(text) max_record_number"; 
 		exit(-1); 
 	}
-	CSampleIDWeight::SetDataDimension(atoi(argv[1])); 
 	int max_record_number = atoi(argv[4]); 
 	vector <CSampleIDWeight> sample(max_record_number);
 	fstream iFile; 
