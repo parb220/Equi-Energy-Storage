@@ -4,31 +4,28 @@
 #include "CSampleIDWeight.h"
 
 using namespace std; 
+int CSampleIDWeight::dim; 
 
 void CSampleIDWeight::SetDataDimension(int _dim)
 {
-	if (dim != _dim)
-	{
-		if (dim > 0)
-			delete [] data; 
-		dim = _dim; 
-		data = new double[dim]; 
-	}
+	dim = _dim; 
 }
 
 CSampleIDWeight::CSampleIDWeight()
 {
-	dim = 0; 
-	data = NULL; 
+	data = new double[dim]; 
+	//data.resize(dim); 
 	id = 0; 
-	weight = 0; 
+	weight = 1.0; 
 }
 
-CSampleIDWeight::CSampleIDWeight(const double *x, int _dim, int _id, double _weight)
+CSampleIDWeight::CSampleIDWeight(const double *x, int _id, double _weight)
 {
-	dim = _dim; 
 	data = new double[dim]; 
-	memcpy(data, x, sizeof(double)*dim); 
+	memcpy(data, x, sizeof(data)*dim); 
+	// data.resize(dim); 
+	for (int i=0; i<dim; i++)
+		data[i] = x[i]; 
 	id = _id; 
 	weight = _weight; 
 }
@@ -42,9 +39,9 @@ CSampleIDWeight::CSampleIDWeight(const double *x, int _dim, int _id, double _wei
 
 CSampleIDWeight::CSampleIDWeight(const CSampleIDWeight &right)
 {
-	dim = right.dim; 
 	data = new double[dim]; 
-	memcpy(data, right.data, sizeof(double)*dim);
+	memcpy(data, right.data, sizeof(data)*dim);
+	// data = right.data; 
 	id = right.id; 
 	weight = right.weight;
 }
@@ -53,14 +50,14 @@ CSampleIDWeight::~CSampleIDWeight()
 {
 	/* if (data != NULL)
 		delete [] data; */
-	if (dim > 0)
-		delete [] data; 
 }
 
 CSampleIDWeight & CSampleIDWeight:: operator = (const CSampleIDWeight &right)
 {	
-	SetDataDimension(right.dim); 
-	memcpy(data, right.data, sizeof(double)*dim); 
+	if (data == NULL)
+		data = new double[dim]; 
+	memcpy(data, right.data, sizeof(data)*dim); 
+	// data = right.data; 
 	id = right.id; 
 	weight = right.weight;	
 	return *this;
@@ -68,10 +65,7 @@ CSampleIDWeight & CSampleIDWeight:: operator = (const CSampleIDWeight &right)
 
 istream & read (istream & input_stream, CSampleIDWeight *x)
 {
-	int dim; 
-	input_stream.read((char*)&(dim), sizeof(int)); 
-	x->SetDataDimension(dim);
-	input_stream.read((char*)&(x->data[0]), sizeof(double)*x->dim); 
+	input_stream.read((char*)&(x->data[0]), sizeof(double)*CSampleIDWeight::dim); 
 	input_stream.read((char*)&(x->id), sizeof(int)); 
 	input_stream.read((char*)&(x->weight), sizeof(double)); 
 	return input_stream; 
@@ -85,8 +79,7 @@ istream & read (istream & input_stream, CSampleIDWeight *x)
 
 ostream& write(ostream & output_stream, const CSampleIDWeight *x)
 {
-	output_stream.write((char*)&(x->dim), sizeof(int)); 
-	output_stream.write((char*)&(x->data[0]), sizeof(double)*x->dim); 
+	output_stream.write((char*)&(x->data[0]), sizeof(double)*CSampleIDWeight::dim); 
 	output_stream.write((char*)&(x->id), sizeof(int)); 
 	output_stream.write((char*)&(x->weight), sizeof(double)); 
 	return output_stream; 
@@ -116,12 +109,12 @@ void CSampleIDWeight::GetData(double *_x, int _dim, int &_id, double &_weight)
 
 int CSampleIDWeight::GetSize_Data()
 {	
-	return sizeof(int)+sizeof(double)*dim+sizeof(int)+sizeof(double); 
+	return sizeof(double)*dim+sizeof(int)+sizeof(double); 
 }
 
 istream& operator >> (istream &inputStr, CSampleIDWeight &sample)
 {
-	for (int i=0; i<sample.dim; i++)
+	for (int i=0; i<CSampleIDWeight::dim; i++)
 		inputStr >> sample.data[i]; 
 	inputStr >> sample.id; 
 	inputStr >> sample.weight; 
@@ -130,7 +123,7 @@ istream& operator >> (istream &inputStr, CSampleIDWeight &sample)
 
 ostream& operator << (ostream &outputStr, const CSampleIDWeight &sample)
 {
-	for (int i=0; i<sample.dim; i++)
+	for (int i=0; i<CSampleIDWeight::dim; i++)
 		outputStr << sample.data[i] << "\t"; 
 	outputStr << sample.id << "\t"; 
 	outputStr << sample.weight << endl; 
