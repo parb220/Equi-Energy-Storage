@@ -11,6 +11,7 @@ CSampleIDWeight::CSampleIDWeight()
 	data = NULL; 
 	id = 0; 
 	weight = 0.0; 
+	if_calculated = false; 
 }
 
 CSampleIDWeight::CSampleIDWeight(const double *x, int _dim, int _id, double _weight)
@@ -20,6 +21,7 @@ CSampleIDWeight::CSampleIDWeight(const double *x, int _dim, int _id, double _wei
 	memcpy(data, x, sizeof(double)*dim); 
 	id = _id; 
 	weight = _weight; 
+	if_calculated = false; 
 }
 
 CSampleIDWeight::CSampleIDWeight(const CSampleIDWeight &right)
@@ -31,6 +33,7 @@ CSampleIDWeight::CSampleIDWeight(const CSampleIDWeight &right)
 	weight = right.weight;
 	log_prob = right.log_prob; 
 	energy = right.energy; 
+	if_calculated = right.if_calculated;  
 }
 
 CSampleIDWeight::~CSampleIDWeight()
@@ -58,17 +61,36 @@ CSampleIDWeight & CSampleIDWeight:: operator = (const CSampleIDWeight &right)
 	weight = right.weight;	
 	log_prob = right.log_prob; 
 	energy = right.energy; 
+	if_calculated = right.if_calculated; 
 	return *this;
 }
 
-void CSampleIDWeight:: PartialCopy(const CSampleWeight &right, int offset, int length)
+void CSampleIDWeight:: PartialCopyFrom(const CSampleWeight &right, int offset, int length)
 {
 	memcpy(data+offset, right.data+offset, sizeof(double)*length); 
+	if (offset ==0 && length == dim && length == right.dim)
+	{
+		weight = right. weight; 
+		log_prob = right.log_prob; 
+		energy = right.energy; 
+		if_calculated = right.if_calculated; 
+	}
+	else 
+		if_calculated = false; 
 }
 
-void CSampleIDWeight:: PartialCopy(int offset1, const CSampleIDWeight &right, int offset2, int length)
+void CSampleIDWeight:: PartialCopyFrom(int offset1, const CSampleIDWeight &right, int offset2, int length)
 {
 	memcpy(data+offset1, right.data+offset2, sizeof(double)*length); 
+	if (offset1 == 0 && offset2 == 0 && length == dim && length == right.dim)
+	{
+		weight = right.weight;
+		log_prob = right.log_prob; 
+		energy = right.energy; 
+		if_calculated = right.if_calculated; 
+	}
+	else 
+		if_calculated = false; 
 }
 
 istream & read (istream & input_stream, CSampleIDWeight *x)
