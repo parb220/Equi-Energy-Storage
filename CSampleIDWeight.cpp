@@ -59,6 +59,25 @@ CSampleIDWeight & CSampleIDWeight:: operator = (const CSampleIDWeight &right)
 	return *this;
 }
 
+CSampleIDWeight CSampleIDWeight::operator +(const CSampleIDWeight &right)
+{
+	CSampleIDWeight add = right; 
+	add.SetDataDimension(dim); 
+	for (int i=0; i<dim; i++)
+		add[i] = this->data[i] + add[i];  
+	return add; 
+}
+
+CSampleIDWeight CSampleIDWeight::operator - (const CSampleIDWeight &right)
+{
+	CSampleIDWeight diff = right; 
+	diff.SetDataDimension(dim); 
+	for (int i=0; i<dim; i++)
+		diff[i] = this->data[i] - diff[i]; 
+	return diff; 
+}
+
+
 void CSampleIDWeight:: PartialCopyFrom(const CSampleIDWeight &right, int offset, int length)
 {
 	memcpy(data+offset, right.data+offset, sizeof(double)*length); 

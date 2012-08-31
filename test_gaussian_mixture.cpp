@@ -244,9 +244,8 @@ int main(int argc, char **argv)
  	*/
 		for (int i=parameter.number_energy_level-1; i>=0; i--)
 		{
-			parameter.GetCurrentState(i, temp_buffer_float, parameter.data_dimension); 
 			if (i == parameter.number_energy_level-1)
-				simulator_node[i].Initialize(temp_buffer_float, parameter.data_dimension); 
+				simulator_node[i].Initialize(parameter.GetCurrentState(i)); 
 			else if (!simulator_node[i].Initialize(storage, r)) 
 				simulator_node[i].Initialize(temp_buffer_float, parameter.data_dimension); 
 			cout << "Node " << i << " Burn in for " << parameter.burn_in_period << endl; 
@@ -274,10 +273,7 @@ int main(int argc, char **argv)
 	else 
 	{
 		for (int i=CEES_Node::GetEnergyLevelNumber()-1; i>=0; i--)
-		{
-			parameter.GetCurrentState(i, temp_buffer_float, parameter.data_dimension); 
-			simulator_node[i].Initialize(temp_buffer_float, parameter.data_dimension);
-		}
+			simulator_node[i].Initialize(parameter.GetCurrentState(i));
 	}
 	delete [] temp_buffer_float; 
 	
