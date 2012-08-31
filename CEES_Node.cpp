@@ -265,7 +265,7 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, const gsl
 	// Save current state, because (1) tuning is based on a mode, and (2) after tuning is done, simulator will resume from the current state
 	CSampleIDWeight x_current_saved = x_current; 
 
-	x_current = ultimate_target->GetMode(dataDim); 
+	x_current = ultimate_target->GetMode(); 
 	// At this moment x_current.weight and x_current.log_pron are wrt ultimate_target
 	// x_current.weight will remain the same
 	// x_current.log_prob needs to be updated to reflect this level's H and T
