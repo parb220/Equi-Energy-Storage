@@ -99,14 +99,19 @@ ostream& write(ostream & output_stream, const CSampleIDWeight *x)
 	return output_stream; 
 }
 
-void CSampleIDWeight::CopyData(double *_x, int _dim, int &_id, double &_weight)
+void CSampleIDWeight::CopyData(double *_x, int _dim, int &_id, double &_weight) const
 {
 	memcpy(_x, data, sizeof(double)*dim); 
 	_id = id; 
 	_weight = weight; 
 }
 
-int CSampleIDWeight::GetSize_Data()
+void CSampleIDWeight::CopyData(double *_x, int _dim) const
+{
+	memcpy(_x, data, sizeof(double)*dim); 
+}
+
+int CSampleIDWeight::GetSize_Data() const
 {	
 	return sizeof(int)+sizeof(double)*dim+sizeof(int)+sizeof(double); 
 }
