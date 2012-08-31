@@ -16,8 +16,13 @@ CSampleIDWeight::CSampleIDWeight()
 CSampleIDWeight::CSampleIDWeight(const double *x, int _dim, int _id, double _weight)
 {
 	dim = _dim; 
-	data = new double[dim]; 
-	memcpy(data, x, sizeof(double)*dim); 
+	if (dim > 0)
+	{
+		data = new double[dim]; 
+		memcpy(data, x, sizeof(double)*dim); 
+	}
+	else 
+		data = NULL; 
 	id = _id; 
 	weight = _weight; 
 }
@@ -25,8 +30,13 @@ CSampleIDWeight::CSampleIDWeight(const double *x, int _dim, int _id, double _wei
 CSampleIDWeight::CSampleIDWeight(const CSampleIDWeight &right)
 {
 	dim = right.dim; 
-	data = new double[dim]; 
-	memcpy(data, right.data, sizeof(double)*dim);
+	if (dim > 0)
+	{
+		data = new double[dim]; 
+		memcpy(data, right.data, sizeof(double)*dim);
+	}
+	else 
+		data = NULL; 
 	id = right.id; 
 	weight = right.weight;
 	log_prob = right.log_prob; 
@@ -45,7 +55,10 @@ void CSampleIDWeight::SetDataDimension(int _dim)
 		if (dim > 0)
 			delete [] data; 
 		dim = _dim; 
-		data = new double[dim]; 
+		if (dim > 0)
+			data = new double[dim];
+		else 
+			data = NULL;  
 	}
 }
 
@@ -59,22 +72,16 @@ CSampleIDWeight & CSampleIDWeight:: operator = (const CSampleIDWeight &right)
 	return *this;
 }
 
-CSampleIDWeight CSampleIDWeight::operator +(const CSampleIDWeight &right)
+void CSampleIDWeight::Add(const CSampleIDWeight &right)
 {
-	CSampleIDWeight add = right; 
-	add.SetDataDimension(dim); 
 	for (int i=0; i<dim; i++)
-		add[i] = this->data[i] + add[i];  
-	return add; 
+		data[i] = data[i] + right.data[i];  
 }
 
-CSampleIDWeight CSampleIDWeight::operator - (const CSampleIDWeight &right)
+void CSampleIDWeight::Subtract (const CSampleIDWeight &right)
 {
-	CSampleIDWeight diff = right; 
-	diff.SetDataDimension(dim); 
 	for (int i=0; i<dim; i++)
-		diff[i] = this->data[i] - diff[i]; 
-	return diff; 
+		data[i] = data[i] - right.data[i]; 
 }
 
 

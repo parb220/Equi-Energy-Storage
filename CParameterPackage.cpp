@@ -261,7 +261,7 @@ void CParameterPackage::SetCurrentState(const gsl_rng *r)
 	bool if_new_sample; 
 	x_current.resize(number_energy_level); 
 	for (int i=0; i<number_energy_level; i++)
-		x_current[i] = initial_model.draw(if_new_sample, r); 
+		initial_model.draw(x_current[i], if_new_sample, r); 
 	delete [] lB; 
 	delete [] uB; 
 }

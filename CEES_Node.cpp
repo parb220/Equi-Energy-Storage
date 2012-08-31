@@ -78,10 +78,10 @@ void CEES_Node::Initialize(const gsl_rng *r, CModel *model)
 {
 	bool if_new_sample; 
 	if (model == NULL)	// directly draw a sample from target
-		x_current = target->draw(if_new_sample, r);  
+		target->draw(x_current, if_new_sample, r);  
 	else
 	{
-		x_current = model->draw(if_new_sample, r); 
+		model->draw(x_current, if_new_sample, r); 
 		target->log_prob(x_current); 
 	}
 	ring_index_current = GetRingIndex(x_current.GetWeight()); 
@@ -188,11 +188,11 @@ bool CEES_Node::MH_draw(const gsl_rng *r, int mMH)
 	if (nBlock <= 1)
 	{
 		bool local_flag;
-		x_new = target->draw(proposal[0], local_flag, r, x_current, mMH);
+		target->draw(x_new, proposal[0], local_flag, r, x_current, mMH);
 		new_sample_flag[0] = local_flag;
 	}
 	else 
-		x_new = target->draw(proposal, new_sample_flag, r, x_current, nBlock, blockSize, mMH);
+		target->draw(x_new, proposal, new_sample_flag, r, x_current, nBlock, blockSize, mMH);
 	bool overall_new_sample_flag = false;
 	int iBlock = 0; 
 	while (iBlock < nBlock && !overall_new_sample_flag)
@@ -265,7 +265,7 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, const gsl
 	// Save current state, because (1) tuning is based on a mode, and (2) after tuning is done, simulator will resume from the current state
 	CSampleIDWeight x_current_saved = x_current; 
 
-	x_current = ultimate_target->GetMode(); 
+	ultimate_target->GetMode(x_current); 
 	// At this moment x_current.weight and x_current.log_pron are wrt ultimate_target
 	// x_current.weight will remain the same
 	// x_current.log_prob needs to be updated to reflect this level's H and T
