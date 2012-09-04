@@ -78,10 +78,22 @@ void CSampleIDWeight::Add(const CSampleIDWeight &right)
 		data[i] = data[i] + right.data[i];  
 }
 
+void CSampleIDWeight::Add(const double *right, int _dim)
+{
+	for (int i=0; i<dim; i++)
+		data[i] = data[i] + right[i]; 
+}
+
 void CSampleIDWeight::Subtract (const CSampleIDWeight &right)
 {
 	for (int i=0; i<dim; i++)
 		data[i] = data[i] - right.data[i]; 
+}
+
+void CSampleIDWeight::Subtract(const double *right, int _dim)
+{
+	for (int i=0; i<dim; i++)
+		data[i] = data[i] - right[i]; 
 }
 
 
