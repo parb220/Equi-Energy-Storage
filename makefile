@@ -23,13 +23,12 @@ test_gaussian_objects = CSampleIDWeight.o CPutGetBin.o CStorageHead.o MHAdaptive
 test_gaussian : $(test_gaussian_objects)
 	$(CPP) $(CPPGLAGS) $(LIBS_DIR) $(LIBS) $(test_gaussian_objects) -o $@
 
-binary2test_objects = binary2text.o CSampleIDWeight.o
-binary2test : $(binary2test_objects)
-	$(CPP) $(CPPGLAGS) $(LIBS_DIR) $(LIBS) $(binary2test_objects) -o $@ 
+binary2text_objects = binary2text.o CSampleIDWeight.o
+binary2text : $(binary2text_objects)
+	$(CPP) $(CPPGLAGS) $(LIBS_DIR) $(LIBS) $(binary2text_objects) -o $@ 
 
 %.o : %.cpp
 	$(CPP) $(CPPFLAGS) $(INCLUDE_DIR) -c $< -o $@
 
 clean: 
 	rm -f *.o binary2text test_gaussian test_gaussian_mixture
-

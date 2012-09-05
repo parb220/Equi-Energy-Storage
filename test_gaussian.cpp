@@ -25,13 +25,16 @@ using namespace std;
 
 bool Configure_GaussianModel_File(CGaussianModel &, const string); 
 
-int main()
+int main(int argc, char **argv)
 {
+	bool if_training = false; 
+	if (argc >=2 && atoi(argv[1]) > 0)
+		if_training = true; 	
 	/*
  	Initialize the target distribution as a Gaussian model;
 	Mean and Covariance are stored in files
   	*/
-	string filename_base = "gaussian_model."; 
+	string filename_base = "../equi_energy_generic/gaussian_model."; 
 	CGaussianModel target; 
 	if (!Configure_GaussianModel_File(target, filename_base))
 	{
@@ -53,8 +56,8 @@ int main()
  	storage 
  	*/
 	int run_id = time(NULL); 
-	CStorageHead storage(run_id, 1000, 1000, 1, string("")); 
-	
+	CStorageHead storage(run_id, 10000, 10000, 1, string("")); 
+	storage.makedir();	
 	/*
  	Transition model: CTransitionModel_Gaussian with dim = 2 and initially set as an identity matrix
  	*/
@@ -70,36 +73,60 @@ int main()
 
 
 	/* Tune mProposal */
-	double targetAcc = 0.25; 
-	int LPeriod = 100; 
-	int NPeriod = 50; 
-	CSampleIDWeight mode; 
-	target.GetMode(mode); 
-	int dim_cum_sum = 0; 
-	for (int iBlock=0; iBlock<nBlock; iBlock ++)
-	{
-		mProposal[iBlock]->Tune(targetAcc, LPeriod, NPeriod, r, &target, mode, dim_cum_sum, 2); 
-		dim_cum_sum += 2; 
-	}	
-
-	// simulation run
 	CSampleIDWeight x_current, x_new; 
 	x_current.SetDataDimension(target.GetDataDimension()); 
-	x_current = mode; 
+	target.GetMode(x_current);  
 	x_new.SetDataDimension(target.GetDataDimension()); 
 	vector <bool> if_new_sample(nBlock); 
 	int iBlock; 
-	for (int n=0; n<10000; n++)
+	int nAccepted = 0; 
+	if (if_training)
+	{
+		double targetAcc = 0.25; 
+		int LPeriod = 100; 
+		int NPeriod = 50; 
+		int dim_cum_sum = 0; 
+		for (int tI=0; tI < 10; tI ++)
+		{
+			dim_cum_sum = 0; 
+			cout << "Training: " << tI << endl; 
+			for (iBlock=0; iBlock<nBlock; iBlock ++)
+			{
+				mProposal[iBlock]->Tune(targetAcc, LPeriod, NPeriod, r, &target, x_current, dim_cum_sum, 2); 
+				dim_cum_sum += 2; 
+			}
+			for (int n=0; n<1000; n++)
+			{
+				target.drawMH(x_new, mProposal, if_new_sample, r, x_current, nBlock, blockSize, 0);
+                		iBlock =0;
+                		while (iBlock < nBlock && !if_new_sample[iBlock])
+                        		iBlock++;
+                		if (iBlock < nBlock)
+                        		x_current = x_new;
+			}
+		}
+	}
+
+	// simulation run
+	int lSimulation = 3000000;
+	int lBurnIn = 2000000; 
+	int fDeposit = 100; 
+	for (int n=0; n<lSimulation; n++)
 	{
 		target.drawMH(x_new, mProposal, if_new_sample, r, x_current, nBlock, blockSize, 0);
 		iBlock =0; 
 		while (iBlock < nBlock && !if_new_sample[iBlock])
 			iBlock++; 
 		if (iBlock < nBlock)
+		{
 			x_current = x_new; 
-		storage.DepositSample(0, x_current); 
+			nAccepted ++; 
+		}
+		if (n>lBurnIn && n%fDeposit == 0)
+			storage.DepositSample(0, x_current); 
 	} 	
 	storage.finalize(); 
+	cout << "Acceptance rate: " << (nAccepted+0.0)/(lSimulation+0.0) << endl; 
 
 	for (int iBlock=0; iBlock<nBlock; iBlock++)
 		delete mProposal[iBlock]; 
@@ -119,7 +146,7 @@ bool Configure_GaussianModel_File(CGaussianModel &model, const string filename_b
 	inputFile >> nDim; 
 	double *mean = new double [nDim];
 	for (int i=0; i<nDim; i++)
-		inputFile >> mean[nDim]; 
+		inputFile >> mean[i]; 
 	inputFile.close(); 
 	
 	/*covariance */
