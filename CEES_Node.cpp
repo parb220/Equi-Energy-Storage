@@ -188,11 +188,11 @@ bool CEES_Node::MH_draw(const gsl_rng *r, int mMH)
 	if (nBlock <= 1)
 	{
 		bool local_flag;
-		target->draw(x_new, proposal[0], local_flag, r, x_current, mMH);
+		target->drawMH(x_new, proposal[0], local_flag, r, x_current, mMH);
 		new_sample_flag[0] = local_flag;
 	}
 	else 
-		target->draw(x_new, proposal, new_sample_flag, r, x_current, nBlock, blockSize, mMH);
+		target->drawMH(x_new, proposal, new_sample_flag, r, x_current, nBlock, blockSize, mMH);
 	bool overall_new_sample_flag = false;
 	int iBlock = 0; 
 	while (iBlock < nBlock && !overall_new_sample_flag)
@@ -277,51 +277,6 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, const gsl
 		dim_lum_sum += blockSize[iBlock];  
 	}
 	
-	/*int nGenerated = initialPeriodL; // length of observation
-	int nAccepted;  
-	
-	MHAdaptive *adaptive; 
-	CTransitionModel_SimpleGaussian *individual_proposal = new CTransitionModel_SimpleGaussian(1); 
-	  
-	// Tune for a number of perioldNumber times
-	int dim_lum_sum =0;
-	bool new_sample_flag = false; 
-	ultimate_target->GetMode(x_current, dataDim); 
-	double log_prob_mode = target->log_prob(x_current, dataDim);  
-	double log_prob_x; 
-	for (int iBlock=0; iBlock<nBlock; iBlock++)
-	{
-		for (int iDim=0; iDim<blockSize[iBlock]; iDim++)
-		{
-			adaptive = new MHAdaptive(targetAcc[this->id], proposal[iBlock]->get_step_size(iDim)); 
-			individual_proposal->set_step_size(proposal[iBlock]->get_step_size(iDim));
-			for (int nPeriod=0; nPeriod<periodNumber; nPeriod++)
-			{	
-				// tuning starts from a mode of the target distribution
-				ultimate_target->GetMode(x_current, dataDim); 
-				nAccepted = 0;
-				log_prob_x = log_prob_mode;  
-				// draw samples 
-				for (int iteration=0; iteration<nGenerated; iteration ++)
-				{
-					log_prob_x = target->draw_block(dim_lum_sum+iDim, 1, individual_proposal, x_new, dataDim, new_sample_flag, r, x_current,log_prob_x, mMH); 
-					if (new_sample_flag)
-					{
-						memcpy(x_current, x_new, dataDim*sizeof(double));
-						nAccepted ++; 
-					}
-				}
-				// Update scale 
-				if(adaptive->UpdateScale(nGenerated, nAccepted)) 
-					individual_proposal->set_step_size(adaptive->GetScale()); 
-			}
-			proposal[iBlock]->set_step_size(adaptive->GetBestScale(), iDim); 
-		}
-		delete adaptive;
-		dim_lum_sum += blockSize[iBlock]; 
-	}
-	
-	delete individual_proposal; */
 	// restore x_current
 	x_current = x_current_saved; 
 }
