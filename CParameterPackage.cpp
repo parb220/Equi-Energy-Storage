@@ -69,8 +69,7 @@ bool CParameterPackage::SaveParameterToFile(string file_name)
 		oFile.write((char*)(&(energy_index_current[i])), sizeof(int)); 
 
 	for (int i=0; i<number_energy_level; i++)
-		for (int j=0; j<data_dimension; j++)
-			oFile.write((char*)(&(x_current[i][j])), sizeof(double));  
+		write(oFile, &(x_current[i])); 
 	oFile.close(); 
 	return true;
 }
@@ -140,10 +139,9 @@ bool CParameterPackage::LoadParameterFromFile(string file_name)
 
 	x_current.resize(number_energy_level); 
 	for (int i=0; i<number_energy_level; i++)
-		x_current[i].resize(data_dimension); 
+		x_current[i].SetDataDimension(data_dimension); 
 	for (int i=0; i<number_energy_level; i++)
-		for (int j=0; j<data_dimension; j++)
-			iFile.read((char *)(&(x_current[i][j])), sizeof(double)); 
+		read(iFile, &(x_current[i])); 
 	
 	iFile.close(); 
 	return true; 
@@ -254,8 +252,6 @@ void CParameterPackage::SetCurrentState(const gsl_rng *r)
 {
 	double *lB = new double [data_dimension];
         double *uB = new double [data_dimension];
-	double *x_array = new double[data_dimension]; 
-	x_current.resize(number_energy_level); 
         for (int i=0; i<data_dimension; i++)
         {
                 lB[i] = uniform_lb;
@@ -263,16 +259,11 @@ void CParameterPackage::SetCurrentState(const gsl_rng *r)
         }
 	CUniformModel initial_model(data_dimension, lB, uB); 
 	bool if_new_sample; 
+	x_current.resize(number_energy_level); 
 	for (int i=0; i<number_energy_level; i++)
-	{
-		initial_model.draw(x_array, data_dimension, if_new_sample, r); 
-		x_current[i].resize(data_dimension); 
-		for (int j=0; j<data_dimension; j++)
-			x_current[i][j] = x_array[j]; 
-	}
+		initial_model.draw(x_current[i], if_new_sample, r); 
 	delete [] lB; 
 	delete [] uB; 
-	delete [] x_array; 
 }
 
 void CParameterPackage::SetBlock(int *_block_size)
@@ -296,12 +287,6 @@ void CParameterPackage::GetMHProposalScale (int _id, double *_buffer, int _buffe
 {
 	for (int j=0; j<data_dimension; j++)
 		_buffer[j] = scale[_id][j]; 
-}
-
-void CParameterPackage::GetCurrentState(int _id, double *_buffer, int _buffer_size) const
-{
-	for (int j=0; j<data_dimension; j++)
-		_buffer[j] = x_current[_id][j]; 
 }
 
 void CParameterPackage::GetEnergyBound(double *_buffer, int _buffer_size) const

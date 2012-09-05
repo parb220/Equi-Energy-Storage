@@ -28,8 +28,8 @@ CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel *transition, CEES_Node *
 	proposal[0] = transition;
 	next_level = pNext;
 	
-	x_current = new double [dataDim]; 
-	x_new = new double [dataDim];
+	x_current.SetDataDimension(dataDim); 
+	x_new.SetDataDimension(dataDim); 
 
 	target = new CBoundedModel(H[id], T[id], ultimate_target); 
 	ring_size = vector< int> (K, 0);
@@ -45,8 +45,8 @@ CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel **transition, CEES_Node 
         	proposal[iBlock] = transition[iBlock];
         next_level = pNext;
 
-        x_current = new double [dataDim];
-        x_new = new double [dataDim];
+        x_current.SetDataDimension(dataDim);
+        x_new.SetDataDimension(dataDim); 
 
         target = new CBoundedModel(H[id], T[id], ultimate_target);
         ring_size = vector< int> (K, 0);
@@ -60,12 +60,6 @@ void CEES_Node::SetID_LocalTarget(int iEnergyLevel)
 
 CEES_Node::~CEES_Node()
 {
-	if (x_current)
-		delete [] x_current; 
-
-	if (x_new)
-		delete [] x_new; 
-
 	if (target)
 		delete target;
 
@@ -83,54 +77,68 @@ int CEES_Node::BinID(double e) const
 void CEES_Node::Initialize(const gsl_rng *r, CModel *model)
 {
 	bool if_new_sample; 
-	if (model == NULL)
-		target->draw(x_current, dataDim, if_new_sample, r);  
+	if (model == NULL)	// directly draw a sample from target
+		target->draw(x_current, if_new_sample, r);  
 	else
-		model->draw(x_current, dataDim, if_new_sample, r); 
-	energy_current = OriginalEnergy(x_current, dataDim); 
-	log_prob_current = -(energy_current > GetEnergy() ? energy_current : GetEnergy())/GetTemperature();
-	ring_index_current = GetRingIndex(energy_current); 
-	UpdateMinMaxEnergy(energy_current); 
+	{
+		model->draw(x_current, if_new_sample, r); 
+		target->log_prob(x_current); 
+	}
+	ring_index_current = GetRingIndex(x_current.GetWeight()); 
+	UpdateMinMaxEnergy(x_current.GetWeight()); 
 }
 
 void CEES_Node::Initialize(const double *x, int x_d)
 {
-	memcpy(x_current, x, sizeof(double)*dataDim); 
-	energy_current = OriginalEnergy(x_current, dataDim);
-	log_prob_current = -(energy_current > GetEnergy() ? energy_current : GetEnergy())/GetTemperature(); 
-	ring_index_current = GetRingIndex(energy_current); 
-	UpdateMinMaxEnergy(energy_current); 
+	x_current = CSampleIDWeight(x, x_d); 
+	target->log_prob(x_current); 
+	ring_index_current = GetRingIndex(x_current.GetWeight()); 
+	UpdateMinMaxEnergy(x_current.GetWeight()); 
+}
+
+void CEES_Node::Initialize(CSampleIDWeight x)
+{
+	x_current = x; 
+	target->log_prob(x_current); 
+	ring_index_current = GetRingIndex(x_current.GetWeight()); 
+	UpdateMinMaxEnergy(x_current.GetWeight()); 
 }
 
 bool CEES_Node::Initialize(CStorageHead &storage, const gsl_rng *r)
 {
+	// Initialize using samples from the next level; 
 	if (next_level == NULL)
                 return false;
         int bin_id_next_level; 
-        int x_id;
+	// Try next levels' bins with the same or lower energies
 	for (int try_id = id; try_id >= 0; try_id --)
 	{
 		bin_id_next_level = next_level->BinID(try_id); 
         	if (!storage.empty(bin_id_next_level))
 		{
-			storage.DrawSample(bin_id_next_level, x_current, dataDim, x_id, energy_current, r);
-			//energy_current = OriginalEnergy(x_current, dataDim); 
-			log_prob_current = -(energy_current > GetEnergy() ? energy_current : GetEnergy())/GetTemperature();
-			ring_index_current = GetRingIndex(energy_current);  
-			UpdateMinMaxEnergy(energy_current); 
+			storage.DrawSample(bin_id_next_level, r, x_current);
+			// x_current.weight will remain the same 
+			// x_current.log_prob needs to be updated according to 
+			// current level's H and T
+			x_current.log_prob = -(x_current.GetWeight() > GetEnergy() ? x_current.GetWeight() : GetEnergy())/GetTemperature(); 
+			ring_index_current = GetRingIndex(x_current.GetWeight());  
+			UpdateMinMaxEnergy(x_current.GetWeight()); 
 			return true;
 		}
 	}
+	// If not successful, then try next level's bins with higher energies
 	for (int try_id = id+1; try_id <K; try_id ++)
 	{
 		bin_id_next_level = next_level->BinID(try_id);
                 if (!storage.empty(bin_id_next_level))
                 {
-                        storage.DrawSample(bin_id_next_level, x_current, dataDim, x_id, energy_current, r);
-                       	//energy_current = OriginalEnergy(x_current, dataDim);
-			log_prob_current = -(energy_current > GetEnergy() ? energy_current : GetEnergy())/GetTemperature();
-                        ring_index_current = GetRingIndex(energy_current);
-			UpdateMinMaxEnergy(energy_current); 
+                        storage.DrawSample(bin_id_next_level, r, x_current);
+			// x_current.weight will remain the same 
+			// x_current.log_prob needs to be updated according to
+			// current level's H and  T
+			x_current.log_prob = -(x_current.GetWeight() > GetEnergy() ? x_current.GetWeight() : GetEnergy())/GetTemperature(); 
+                        ring_index_current = GetRingIndex(x_current.GetWeight());
+			UpdateMinMaxEnergy(x_current.GetWeight()); 
                         return true;
                 }
 	}
@@ -180,11 +188,11 @@ bool CEES_Node::MH_draw(const gsl_rng *r, int mMH)
 	if (nBlock <= 1)
 	{
 		bool local_flag;
-		target->draw(proposal[0], x_new, dataDim, local_flag, r, x_current, log_prob_current, mMH);
+		target->draw(x_new, proposal[0], local_flag, r, x_current, mMH);
 		new_sample_flag[0] = local_flag;
 	}
 	else 
-		target->draw(proposal, x_new, dataDim, new_sample_flag, r, x_current, log_prob_current, nBlock, blockSize, mMH);
+		target->draw(x_new, proposal, new_sample_flag, r, x_current, nBlock, blockSize, mMH);
 	bool overall_new_sample_flag = false;
 	int iBlock = 0; 
 	while (iBlock < nBlock && !overall_new_sample_flag)
@@ -195,11 +203,9 @@ bool CEES_Node::MH_draw(const gsl_rng *r, int mMH)
 	}
 	if (overall_new_sample_flag)
 	{
-		memcpy(x_current, x_new, sizeof(double)*dataDim); 
-		energy_current = OriginalEnergy(x_current, dataDim); 
-		log_prob_current = -(energy_current > GetEnergy() ? energy_current : GetEnergy())/GetTemperature(); 
-		ring_index_current = GetRingIndex(energy_current);
-		UpdateMinMaxEnergy(energy_current); 
+		x_current = x_new;  
+		ring_index_current = GetRingIndex(x_current.GetWeight());
+		UpdateMinMaxEnergy(x_current.GetWeight()); 
 	}
 	return overall_new_sample_flag; 
 }
@@ -211,21 +217,20 @@ bool CEES_Node::EE_draw(const gsl_rng *r, CStorageHead &storage)
 	int bin_id_next_level = next_level->BinID(ring_index_current); 
 	if (storage.empty(bin_id_next_level))
 		return false; 
-	int x_id; 
-	double energy_new; 
-	storage.DrawSample(bin_id_next_level, x_new, dataDim, x_id, energy_new, r); 	
+	
+	storage.DrawSample(bin_id_next_level, r, x_new); 	
+	// if x_new is adopted
+	// x_new.weight can be retained
+	// x_new.log_prob needs to be updated to reflect current level's H and T
 
-	/*double logRatio = LogProbRatio(x_new, x_current, dataDim);
-	logRatio += next_level->LogProbRatio(x_current, x_new, dataDim);*/
-	double logRatio = LogProbRatio_Energy(energy_new, energy_current); 
-	logRatio += next_level->LogProbRatio_Energy(energy_current, energy_new); 
+	double logRatio = LogProbRatio_Energy(x_new.GetWeight(), x_current.GetWeight()); 
+	logRatio += next_level->LogProbRatio_Energy(x_current.GetWeight(), x_new.GetWeight()); 
 	
 	double uniform_draw = gsl_rng_uniform(r); 
 	if (log(uniform_draw) <= logRatio)
 	{
-		memcpy(x_current, x_new, sizeof(double)*dataDim); 
-		energy_current = energy_new; 
-		log_prob_current = -(energy_current > GetEnergy() ? energy_current : GetEnergy())/GetTemperature();	
+		x_current = x_new;  
+		x_current.log_prob = -(x_current.GetWeight() > GetEnergy() ? x_current.GetWeight() : GetEnergy())/GetTemperature();	
 		return true; 
 	}
 	else 
@@ -258,15 +263,17 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, const gsl
 // Adapt from Dan's Adaptive Scaling
 {
 	// Save current state, because (1) tuning is based on a mode, and (2) after tuning is done, simulator will resume from the current state
-	double *x_current_saved = new double [dataDim]; 
-	memcpy(x_current_saved, x_current, dataDim);
+	CSampleIDWeight x_current_saved = x_current; 
 
-	ultimate_target->GetMode(x_current, dataDim); 
-        double log_prob_mode = target->log_prob(x_current, dataDim); 
+	ultimate_target->GetMode(x_current); 
+	// At this moment x_current.weight and x_current.log_pron are wrt ultimate_target
+	// x_current.weight will remain the same
+	// x_current.log_prob needs to be updated to reflect this level's H and T
+	x_current.log_prob = -(x_current.GetWeight() > GetEnergy() ? x_current.GetWeight() : GetEnergy())/GetTemperature(); 
 	int dim_lum_sum=0; 
 	for (int iBlock=0; iBlock<nBlock; iBlock++)
 	{
-		proposal[iBlock]->Tune(targetAcc[this->id], initialPeriodL, periodNumber, r, target, x_current, dataDim, log_prob_mode, dim_lum_sum, blockSize[iBlock]); 
+		proposal[iBlock]->Tune(targetAcc[this->id], initialPeriodL, periodNumber, r, target, x_current, dim_lum_sum, blockSize[iBlock]); 
 		dim_lum_sum += blockSize[iBlock];  
 	}
 	
@@ -316,8 +323,7 @@ void CEES_Node::MH_StepSize_Tune(int initialPeriodL, int periodNumber, const gsl
 	
 	delete individual_proposal; */
 	// restore x_current
-	memcpy(x_current, x_current_saved, dataDim); 
-	delete []x_current_saved; 
+	x_current = x_current_saved; 
 }
 
 void CEES_Node::Simulate(const gsl_rng *r, CStorageHead &storage, int N, int depositFreq, int mMH)
@@ -329,7 +335,8 @@ void CEES_Node::Simulate(const gsl_rng *r, CStorageHead &storage, int N, int dep
 		if (i%depositFreq == 0)	// Deposit sample
 		{
 			bin_id = BinID(ring_index_current); 
-			storage.DepositSample(bin_id, x_current, dataDim, nSamplesGenerated, energy_current); 
+			x_current.SetID(nSamplesGenerated); 
+			storage.DepositSample(bin_id, x_current); 
 			ring_size[ring_index_current] ++; 
 		}
 		nSamplesGenerated++;	
@@ -378,7 +385,7 @@ void CEES_Node::SetBlockSize(const int* _bSize, int _nB)
 void CEES_Node::DisregardHistorySamples(CStorageHead &storage)
 {
 	// keep current sample
-	ring_index_current = GetRingIndex(energy_current);
+	ring_index_current = GetRingIndex(x_current.GetWeight());
         vector <int> old_ring_size = ring_size;
         ring_size = vector <int> (ring_size.size(), 0);
         ring_size[ring_index_current] ++;
@@ -396,7 +403,7 @@ void CEES_Node::DisregardHistorySamples(CStorageHead &storage)
 void CEES_Node::AssignSamplesGeneratedSoFar(CStorageHead &storage)
 {
 	// current sample
-	ring_index_current = GetRingIndex(energy_current); 		
+	ring_index_current = GetRingIndex(x_current.GetWeight()); 		
 	vector <int> old_ring_size = ring_size; 
 	ring_size = vector <int> (ring_size.size(), 0);  
 	ring_size[ring_index_current] ++; 
@@ -404,8 +411,7 @@ void CEES_Node::AssignSamplesGeneratedSoFar(CStorageHead &storage)
 	// samples from storage
 	int storage_bin_id, new_storage_bin_id; 
 	vector <CSampleIDWeight> samples; 
-	int ring_index, id;
-	double energy; 	// weight: energy 
+	int ring_index;
 	for (int bin_id = 0; bin_id < K; bin_id ++)
 	{
 		storage_bin_id = BinID(bin_id); 
@@ -414,11 +420,11 @@ void CEES_Node::AssignSamplesGeneratedSoFar(CStorageHead &storage)
 		{
 			for (int i=0; i<(int)(samples.size()); i++)
 			{
-				samples[i].GetData(x_new, dataDim, id, energy);
+				x_new = samples[i]; 
 				// energy = OriginalEnergy(x_new, dataDim); 
-				ring_index = GetRingIndex(energy); 
+				ring_index = GetRingIndex(x_new.GetWeight()); 
 				new_storage_bin_id = BinID(ring_index); 
-				storage.DepositSample(true, new_storage_bin_id, x_new, dataDim, id, energy); 	
+				storage.DepositSample(true, new_storage_bin_id, x_new); 	
 				ring_size[ring_index] ++;
 			}
 			samples=storage.RetrieveSamplesSequentially(true, storage_bin_id);
@@ -454,10 +460,7 @@ void CParameterPackage::TraceSimulator(const CEES_Node &simulator)
 	if ((int)scale.size() < CEES_Node::K)
         	scale.resize(CEES_Node::K); 
 
-	if ((int)x_current[id].size() < CEES_Node::dataDim)
-		x_current[id].resize(CEES_Node::dataDim); 
-	for (int j=0; j<CEES_Node::dataDim; j++)
-		x_current[id][j] = simulator.x_current[j]; 
+	x_current[id] = simulator.x_current; 
         energy_index_current[id] = simulator.ring_index_current;
 	if ((int)scale[id].size() < CEES_Node::dataDim)
 		scale[id].resize(CEES_Node::dataDim); 

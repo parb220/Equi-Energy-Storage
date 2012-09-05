@@ -124,7 +124,7 @@ bool CPutGetBin::DrawSample(double *x, int dim, int &id, double &weight, const g
 	if (GetNumberDataFile() <= 0)
 	{
 		index = gsl_rng_uniform_int(r, nSamplesGeneratedByFar);
-		dataPut[index].GetData(x,dim,id, weight); 
+		dataPut[index].CopyData(x,dim,id, weight); 
 		return true; 
 	}
 	else 
@@ -136,7 +136,7 @@ bool CPutGetBin::DrawSample(double *x, int dim, int &id, double &weight, const g
 		} 
 		index = gsl_rng_uniform_int(r, capacityGet);  
 		nGetUsed ++; 
-		dataGet[index].GetData(x, dim, id, weight); 
+		dataGet[index].CopyData(x, dim, id, weight); 
 		return true; 
 	}
 }
