@@ -257,60 +257,6 @@ void CPutGetBin::DisregardHistorySamples()
 	}
 }
 
-vector <CSampleIDWeight> CPutGetBin::RetrieveSamplesSequentially(bool if_clear_old_bin)
-{
-	vector <CSampleIDWeight> samples; 
-	samples.clear(); 
-	if (nPutUsed == 0 && GetNumberDataFile() > 0)
-	{
-		int index = GetNumberDataFile(); 
-	        fstream iFile;
-        	string file_name;
-        	stringstream convert;
-
-        	convert.str(std::string());
-        	convert << id << "." << index;
-        	file_name = filename_prefix + convert.str();
-        	iFile.open(file_name.c_str(), ios::in|ios::binary);
-        	if (!iFile)
-                	return samples;
-		while (nPutUsed < capacityPut)
-		{
-			read(iFile, &(dataGet[nPutUsed]));	
-			nPutUsed ++;
-		}
-		iFile.close();
-		remove(file_name.c_str()); 
-	}
-	if (nPutUsed)
-	{
-		samples.resize(nPutUsed); 
-		for (int i=0; i<nPutUsed; i++)
-			samples[i] = dataPut[i]; 
-		nSamplesGeneratedByFar -= nPutUsed;
-		nPutUsed = 0; 
-	}
-	return samples; 
-}
-
-void CPutGetBin::ChangeFileName(int new_id)
-{
-	stringstream convert; 
-	string old_file, new_file; 
-	for (int i=1; i<=GetNumberDataFile(); i++)
-	{
-		convert.str(std::string()); 
-		convert << id << "." << i; 
-		old_file = filename_prefix + convert.str(); 
-
-		convert.str(std::string()); 
-		convert << new_id << "." << i; 
-		new_file = filename_prefix + convert.str(); 
-		
-		rename(old_file.c_str(), new_file.c_str()); 
-	}
-}
-
 void CPutGetBin::ClearDepositDrawHistory()
 {
 	nSamplesGeneratedByFar = 0; 

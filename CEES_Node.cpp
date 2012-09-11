@@ -400,43 +400,6 @@ void CEES_Node::DisregardHistorySamples(CStorageHead &storage)
 	}
 }
 
-void CEES_Node::AssignSamplesGeneratedSoFar(CStorageHead &storage)
-{
-	// current sample
-	ring_index_current = GetRingIndex(x_current.GetWeight()); 		
-	vector <int> old_ring_size = ring_size; 
-	ring_size = vector <int> (ring_size.size(), 0);  
-	ring_size[ring_index_current] ++; 
-
-	// samples from storage
-	int storage_bin_id, new_storage_bin_id; 
-	vector <CSampleIDWeight> samples; 
-	int ring_index;
-	for (int bin_id = 0; bin_id < K; bin_id ++)
-	{
-		storage_bin_id = BinID(bin_id); 
-		samples=storage.RetrieveSamplesSequentially(true, storage_bin_id); 
-		while (!samples.empty())
-		{
-			for (int i=0; i<(int)(samples.size()); i++)
-			{
-				x_new = samples[i]; 
-				// energy = OriginalEnergy(x_new, dataDim); 
-				ring_index = GetRingIndex(x_new.GetWeight()); 
-				new_storage_bin_id = BinID(ring_index); 
-				storage.DepositSample(true, new_storage_bin_id, x_new); 	
-				ring_size[ring_index] ++;
-			}
-			samples=storage.RetrieveSamplesSequentially(true, storage_bin_id);
-		}
-	}
-	for (int bin_id =0; bin_id <K; bin_id ++)
-	{
-		storage_bin_id = BinID(bin_id); 
-		storage.Consolidate(storage_bin_id); 
-	}
-}
-
 void CParameterPackage::TraceSimulator(const CEES_Node &simulator)
 {
 	int id = simulator.id; 
