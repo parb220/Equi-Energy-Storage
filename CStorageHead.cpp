@@ -96,7 +96,7 @@ void CParameterPackage::TraceStorageHead(const CStorageHead &storage)
         for (int i=0; i<storage.number_bins; i++)
 	{
                 number_samples_generated_by_far[i] = storage.bin[i].GetNumberSamplesGeneratedByFar();
-		number_files_by_far[i] = storage.bin[i].GetNumberDataFile(true); 
+		number_files_by_far[i] = storage.bin[i].GetNumberDataFile(); 
 	}
 }
 

@@ -81,7 +81,7 @@ mkdir($text_dir, $mode) or die $! unless -d $text_dir;
 my ($binary_file, $text_file); 
 foreach my $bin_index (0..$#bin)
 {
-	foreach my $file_index (1..$bin[$bin_index]->{"number of files"})
+	foreach my $file_index (0..$bin[$bin_index]->{"number of files"}-1)
 	{
 		$binary_file = catfile($binary_dir, $bin_index.".".$file_index); 
 		$text_file = catfile($text_dir, $bin_index.".".$file_index);  		
