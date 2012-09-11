@@ -49,7 +49,7 @@ int CPutGetBin::DepositSample(const CSampleIDWeight &sample)
 	nPutUsed ++; 
 	if (nPutUsed == capacityPut)
 	{
-		Dump(nDumpFile); 
+		Dump(); 
 		nDumpFile ++; 
 		nPutUsed = 0; 
 	}
@@ -67,23 +67,22 @@ int CPutGetBin::DepositSample(const double *x, int x_d, int x_index, double x_we
 	nPutUsed ++; 
 	if (nPutUsed == capacityPut)
 	{
-		Dump(nDumpFile); 
+		Dump(); 
 		nDumpFile++; 
 		nPutUsed = 0; 
 	}
 	return nDumpFile*capacityPut+nPutUsed;
 }
 
-bool CPutGetBin::Dump(int n)
+bool CPutGetBin::Dump()
 {
-	stringstream convert;
-	convert << id << "." << n;	 
-	string file_name = filename_prefix + convert.str(); 
+	string file_name = GetFileNameForDump(); 
 	fstream oFile(file_name.c_str(), ios::out | ios::binary); 
 	if (!oFile)
 		return false; 
 	for (int i=0; i<nPutUsed; i++)
 		write(oFile, &(dataPut[i])); 
+	oFile.flush(); 
 	oFile.close();  
 	return true; 
 }
@@ -234,7 +233,7 @@ void CPutGetBin::finalize()
 {
 	if (nPutUsed > 0)
 	{
-		Dump(nDumpFile);
+		Dump();
 		nDumpFile++;
 		nPutUsed =0; 
 	}  
@@ -259,4 +258,20 @@ void CPutGetBin::ClearDepositDrawHistory()
 	nDumpFile = 0; 
  	nGetUsed = capacityGet;
 	nPutUsed = 0; 
+}
+
+string CPutGetBin::GetFileNameForDump() const
+{
+	stringstream convert;
+        convert << id << "." << nDumpFile;
+        string file_name = filename_prefix + convert.str();
+	return file_name; 
+}
+
+bool CPutGetBin::if_fetchable() 
+{
+	if (nDumpFile*capacityPut+nPutUsed > 0)
+		return true; 
+	else 
+		return false; 
 }

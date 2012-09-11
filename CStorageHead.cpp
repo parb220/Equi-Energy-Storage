@@ -48,10 +48,7 @@ bool CStorageHead::DrawSample(int _bin_id, double *x, int x_d, int &x_ID, double
 
 bool CStorageHead::empty(int _bin_id)
 {
-	if (bin[_bin_id].GetNumberSamplesGeneratedByFar() <= 0)
-		return true; 
-	else 
-		return false; 
+	return !(bin[_bin_id].if_fetchable()); 
 }
 
 bool CStorageHead::makedir()
@@ -95,8 +92,8 @@ void CParameterPackage::TraceStorageHead(const CStorageHead &storage)
 	number_files_by_far.resize(storage.number_bins); 
         for (int i=0; i<storage.number_bins; i++)
 	{
-                number_samples_generated_by_far[i] = storage.bin[i].GetNumberSamplesGeneratedByFar();
-		number_files_by_far[i] = storage.bin[i].GetNumberDataFile(); 
+                number_samples_generated_by_far[i] = storage.bin[i].GetNumberFileForFetch();
+		number_files_by_far[i] = storage.bin[i].GetNumberFileForFetch(); 
 	}
 }
 
