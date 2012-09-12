@@ -80,20 +80,20 @@ void CStorageHead::ClearDepositDrawHistory(int bin_id)
 	bin[bin_id].ClearDepositDrawHistory(); 
 }
 
-void CStorageHead::restore(const CParameterPackage &parameter)
+void CStorageHead::restore()
 {
 	for (int i=0; i<number_bins; i++)
-		bin[i].restore(parameter.NumberSamplesGeneratedByFar(i)); 
+		bin[i].restore(); 
 }
 
 void CParameterPackage::TraceStorageHead(const CStorageHead &storage)
 {
-       	number_samples_generated_by_far.resize(storage.number_bins);
-	number_files_by_far.resize(storage.number_bins); 
+       	// number_samples_generated_by_far.resize(storage.number_bins);
+	number_files_fetch.resize(storage.number_bins); 
         for (int i=0; i<storage.number_bins; i++)
 	{
-                number_samples_generated_by_far[i] = storage.bin[i].GetNumberFileForFetch();
-		number_files_by_far[i] = storage.bin[i].GetNumberFileForFetch(); 
+                // number_samples_generated_by_far[i] = storage.bin[i].GetNumberFileForFetch();
+		number_files_fetch[i] = storage.bin[i].GetNumberFileForFetch(); 
 	}
 }
 

@@ -181,7 +181,7 @@ int main(int argc, char **argv)
 	/* Initialize Storage  */
 	CStorageHead storage(parameter.run_id, parameter.get_marker, parameter.put_marker, parameter.number_bins, storage_filename_base); 
 	if (if_continue)
-		storage.restore(parameter); 
+		storage.restore(); 
 	else 
 		storage.makedir();
 

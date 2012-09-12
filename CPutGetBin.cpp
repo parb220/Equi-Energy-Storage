@@ -204,7 +204,7 @@ bool CPutGetBin::ReadFromOneFile(int i, int &counter, const vector <int> &index)
 	return true; 
 }
 
-bool CPutGetBin::restore(int _dummy)
+bool CPutGetBin::restore()
 {
 	nDumpFile = GetNumberFileForDump(); 
 	if (nDumpFile > 0)

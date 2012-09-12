@@ -53,11 +53,11 @@ bool CParameterPackage::SaveParameterToFile(string file_name)
 		for (int j=0; j<data_dimension; j++)
 			oFile.write((char*)(&(scale[i][j])), sizeof(double)); 
 	
-	for (int i=0; i<number_bins; i++)
-		oFile.write((char*)(&(number_samples_generated_by_far[i])), sizeof(int));
+	// for (int i=0; i<number_bins; i++)
+	//	oFile.write((char*)(&(number_samples_generated_by_far[i])), sizeof(int));
 	
 	for (int i=0; i<number_bins; i++)
-		oFile.write((char*)(&(number_files_by_far[i])), sizeof(int)); 
+		oFile.write((char*)(&(number_files_fetch[i])), sizeof(int)); 
 
 	for (int i=0; i<number_energy_level; i++)
 		oFile.write((char*)(&(h[i])), sizeof(double));
@@ -65,8 +65,8 @@ bool CParameterPackage::SaveParameterToFile(string file_name)
 	for (int i=0; i<number_energy_level; i++)
 	 	oFile.write((char*)(&(t[i])), sizeof(double)); 
 
-	for (int i=0; i<number_energy_level; i++)
-		oFile.write((char*)(&(energy_index_current[i])), sizeof(int)); 
+	// for (int i=0; i<number_energy_level; i++)
+	//	oFile.write((char*)(&(energy_index_current[i])), sizeof(int)); 
 
 	for (int i=0; i<number_energy_level; i++)
 		write(oFile, &(x_current[i])); 
@@ -117,13 +117,13 @@ bool CParameterPackage::LoadParameterFromFile(string file_name)
 		for (int j=0; j<data_dimension; j++)
 			iFile.read((char*)(&(scale[i][j])), sizeof(double));
 
-	number_samples_generated_by_far.resize(number_bins);
-	for (int i=0; i<number_bins; i++)
-        	iFile.read((char*)(&(number_samples_generated_by_far[i])), sizeof(int));
+	// number_samples_generated_by_far.resize(number_bins);
+	// for (int i=0; i<number_bins; i++)
+        //	iFile.read((char*)(&(number_samples_generated_by_far[i])), sizeof(int));
 
-	number_files_by_far.resize(number_bins); 
+	number_files_fetch.resize(number_bins); 
 	for (int i=0; i<number_bins; i++)
-		iFile.read((char*)(&(number_files_by_far[i])), sizeof(int)); 
+		iFile.read((char*)(&(number_files_fetch[i])), sizeof(int)); 
         
 	h.resize(number_energy_level);
 	for (int i=0; i<number_energy_level; i++) 
@@ -133,9 +133,9 @@ bool CParameterPackage::LoadParameterFromFile(string file_name)
 	for (int i=0; i<number_energy_level; i++) 
 		iFile.read((char*)(&(t[i])), sizeof(double));
         
-	energy_index_current.resize(number_energy_level);
-	for (int i=0; i<number_energy_level; i++) 
-		iFile.read((char*)(&(energy_index_current[i])), sizeof(int));
+	// energy_index_current.resize(number_energy_level);
+	// for (int i=0; i<number_energy_level; i++) 
+	//	iFile.read((char*)(&(energy_index_current[i])), sizeof(int));
 
 	x_current.resize(number_energy_level); 
 	for (int i=0; i<number_energy_level; i++)
@@ -164,7 +164,8 @@ bool CParameterPackage::WriteSummaryFile(string file_name)
 	oFile << "Put Marker:\t" << put_marker << endl; 
 	oFile << "Number of Bins:\t" << number_bins << endl; 
 	for (int i=0; i<number_bins; i++)
-		oFile << i << ":\t" << number_samples_generated_by_far[i] << "\t" << number_files_by_far[i] << endl; 
+		// oFile << i << ":\t" << number_samples_generated_by_far[i] << "\t" << number_files_by_far[i] << endl; 
+		oFile << i << ":\t" << number_files_fetch[i]*put_marker << "\t" << number_files_fetch[i] << endl; 
 	oFile << "Data Dimension:\t" << data_dimension << endl; 
 	oFile << "Number of Energy Levels:\t" << number_energy_level << endl; 
 	oFile << "Energy Thresholds:"; 

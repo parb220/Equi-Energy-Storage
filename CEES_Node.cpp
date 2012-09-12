@@ -418,13 +418,13 @@ void CParameterPackage::TraceSimulator(const CEES_Node &simulator)
         
 	if ((int)x_current.size() < CEES_Node::K)
         	x_current.resize(CEES_Node::K) ;
-	if ((int)energy_index_current.size() < CEES_Node::K)
-       		energy_index_current.resize(CEES_Node::K);
+	//if ((int)energy_index_current.size() < CEES_Node::K)
+       	//	energy_index_current.resize(CEES_Node::K);
 	if ((int)scale.size() < CEES_Node::K)
         	scale.resize(CEES_Node::K); 
 
 	x_current[id] = simulator.x_current; 
-        energy_index_current[id] = simulator.ring_index_current;
+        // energy_index_current[id] = simulator.ring_index_current;
 	if ((int)scale[id].size() < CEES_Node::dataDim)
 		scale[id].resize(CEES_Node::dataDim); 
 	int dim_cum_sum =0; 
