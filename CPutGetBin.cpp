@@ -20,6 +20,7 @@ CPutGetBin::CPutGetBin(int _id, int _nDumpFile, int _capacityPut, int _capacityG
  	// dataGet.resize(capacityGet); 
 
 	filename_prefix = _grandPrefix; 
+	fetch_status = false; 
 } 
 
 CPutGetBin::~CPutGetBin()
@@ -91,7 +92,9 @@ bool CPutGetBin::Dump()
 bool CPutGetBin::DrawSample(const gsl_rng *r, CSampleIDWeight &sample)
 {
 	int index; 
-	if (nDumpFile*capacityPut+nPutUsed<= 0)
+	vector <string> filename_fetch = GetFileNameForFetch(); 
+	int nFetchFile = (int)(filename_fetch.size()); 
+	if (nFetchFile*capacityPut+nPutUsed<= 0)
 		return false; 
 	else if (nPutUsed > 0) 
 	/* when data have not been dumped to files
@@ -106,7 +109,7 @@ bool CPutGetBin::DrawSample(const gsl_rng *r, CSampleIDWeight &sample)
 	{
 		if (nGetUsed == capacityGet)
 		{
-			Fetch(r);
+			Fetch(r, filename_fetch);
 			nGetUsed = 0; 
 		}
 		index = gsl_rng_uniform_int(r, capacityGet); 
@@ -118,8 +121,10 @@ bool CPutGetBin::DrawSample(const gsl_rng *r, CSampleIDWeight &sample)
 
 bool CPutGetBin::DrawSample(double *x, int dim, int &id, double &weight, const gsl_rng *r)
 {
-	int index; 
-	if (nDumpFile+capacityPut+nPutUsed<= 0)
+	int index;
+	vector <string> filename_fetch = GetFileNameForFetch(); 
+	int nFetchFile = (int)(filename_fetch.size()); 
+	if (nFetchFile*capacityPut+nPutUsed<= 0)
 		return false; 
 	else if (nPutUsed<= 0)
 	{
@@ -131,7 +136,7 @@ bool CPutGetBin::DrawSample(double *x, int dim, int &id, double &weight, const g
 	{
 		if (nGetUsed == capacityGet)
 		{
-			Fetch(r);
+			Fetch(r, filename_fetch);
 			nGetUsed = 0; 
 		} 
 		index = gsl_rng_uniform_int(r, capacityGet);  
@@ -141,52 +146,47 @@ bool CPutGetBin::DrawSample(double *x, int dim, int &id, double &weight, const g
 	}
 }
 
-bool CPutGetBin::Fetch(const gsl_rng *r)
+bool CPutGetBin::Fetch(const gsl_rng *r, const vector<string> & filename_fetch)
 {
-	if (capacityGet > nDumpFile*capacityPut+nPutUsed)
+	int nFetchFile = (int)(filename_fetch.size()); 
+	if (capacityGet > nFetchFile*capacityPut+nPutUsed)
 		return false;
 
 	if ((int)(dataGet.size()) < capacityGet)
 		dataGet.resize(capacityGet);  
 	
 	int select; 
-	vector < vector <int > > select_per_file(nDumpFile+1); 
-	// First GetNumberDataFile(): files
+	vector < vector <int > > select_per_file(nFetchFile+1); 
+	// First nFetchFile(): files
 	// Last: cache
 	for (int i=0; i<capacityGet; i++)
 	{
-		select=gsl_rng_uniform_int(r, nDumpFile*capacityPut+nPutUsed); 
+		select=gsl_rng_uniform_int(r, nFetchFile*capacityPut+nPutUsed); 
 		select_per_file[select/capacityPut].push_back(select%capacityPut); 
 	}
 	int counter =0; 
-	for (int i=0; i<nDumpFile; i++)	// Read data from file
+	for (int i=0; i<nFetchFile; i++)	// Read data from file
 	{
 		if (!select_per_file[i].empty())
 		{
-			if (!ReadFromOneFile(i, counter, select_per_file[i]) )
+			if (!ReadFromOneFile(filename_fetch[i], counter, select_per_file[i]) )
 				return false; 
 		}
 	}
-	if (!select_per_file[nDumpFile].empty() ) // Read data from cache
+	if (!select_per_file[nFetchFile].empty() ) // Read data from cache
 	{
-		for (int n=0; n<(int)(select_per_file[nDumpFile].size()); n++)
+		for (int n=0; n<(int)(select_per_file[nFetchFile].size()); n++)
 		{
-			dataGet[counter] = dataPut[select_per_file[nDumpFile][n]]; 
+			dataGet[counter] = dataPut[select_per_file[nFetchFile][n]]; 
 			counter ++;
 		}
 	}
 	return true; 
 }
 
-bool CPutGetBin::ReadFromOneFile(int i, int &counter, const vector <int> &index) 
+bool CPutGetBin::ReadFromOneFile(string file_name, int &counter, const vector <int> &index) 
 {	
 	fstream iFile; 
-	string file_name; 
-	stringstream convert;
-
-	convert.str(std::string());
-	convert << id << "." << i;
-        file_name = filename_prefix + convert.str();
         iFile.open(file_name.c_str(), ios::in|ios::binary);
         if (!iFile)
         	return false;
@@ -258,16 +258,11 @@ void CPutGetBin::finalize()
  
 void CPutGetBin::DisregardHistorySamples()
 {
-	string file_name; 
-	stringstream convert; 
-	
-	for (int iFile =0; iFile<nDumpFile; iFile++)
-	{
-		convert.str(std::string());
-                convert << id << "." << iFile; 
-		file_name = filename_prefix + convert.str();	
-		remove(file_name.c_str());
-	}
+	vector <string> filename_fetch = GetFileNameForFetch(); 
+	int nFetchFile = (int)(filename_fetch.size()); 
+		
+	for (int iFile =0; iFile<nFetchFile; iFile++)
+		remove(filename_fetch[iFile].c_str());
 }
 
 void CPutGetBin::ClearDepositDrawHistory()
@@ -287,10 +282,15 @@ string CPutGetBin::GetFileNameForDump() const
 
 bool CPutGetBin::if_fetchable() 
 {
-	if (nDumpFile*capacityPut+nPutUsed > 0)
-		return true; 
-	else 
-		return false; 
+	if (!fetch_status)
+	{
+		int nFetchFile = GetNumberFileForFetch(); 
+		if (nFetchFile*capacityPut+nPutUsed > 0)
+			fetch_status = true; 
+		else 
+			fetch_status = false; 
+	} 
+	return fetch_status; 
 }
 
 int CPutGetBin::GetNumberFileForDump() const
@@ -306,4 +306,33 @@ int CPutGetBin::GetNumberFileForDump() const
 	int final_result = (int)(glob_result.gl_pathc); 
 	globfree(&glob_result); 
 	return final_result; 
+}
+
+vector <string> CPutGetBin::GetFileNameForFetch() const
+{
+	stringstream convert;
+        convert.str("");
+        convert << id << ".*"; // << ".*" // all cluster node; 
+
+        string filename_pattern = filename_prefix + convert.str();
+
+        glob_t glob_result;
+        glob(filename_pattern.c_str(), GLOB_TILDE, NULL, &glob_result);
+	vector <string> filename_fetch; 
+	if (glob_result.gl_pathc > 0)
+	{
+		filename_fetch.resize(glob_result.gl_pathc); 
+		for (int i=0; i<(int)(glob_result.gl_pathc); i++)
+			filename_fetch[i] = string(glob_result.gl_pathv[i]); 
+	}
+	else 
+		filename_fetch.clear(); 
+        globfree(&glob_result);
+        return filename_fetch; 
+}
+
+int CPutGetBin::GetNumberFileForFetch() const
+{
+	vector <string> file_fetch = GetFileNameForFetch();
+	return (int)(file_fetch.size()); 
 }

@@ -114,9 +114,8 @@ bool CEES_Node::Initialize(CStorageHead &storage, const gsl_rng *r)
 	for (int try_id = id; try_id >= 0; try_id --)
 	{
 		bin_id_next_level = next_level->BinID(try_id); 
-        	if (!storage.empty(bin_id_next_level))
+        	if (!storage.empty(bin_id_next_level) && storage.DrawSample(bin_id_next_level, r, x_current))
 		{
-			storage.DrawSample(bin_id_next_level, r, x_current);
 			// x_current.weight will remain the same 
 			// x_current.log_prob needs to be updated according to 
 			// current level's H and T
@@ -130,9 +129,8 @@ bool CEES_Node::Initialize(CStorageHead &storage, const gsl_rng *r)
 	for (int try_id = id+1; try_id <K; try_id ++)
 	{
 		bin_id_next_level = next_level->BinID(try_id);
-                if (!storage.empty(bin_id_next_level))
+                if (!storage.empty(bin_id_next_level) && storage.DrawSample(bin_id_next_level, r, x_current))
                 {
-                        storage.DrawSample(bin_id_next_level, r, x_current);
 			// x_current.weight will remain the same 
 			// x_current.log_prob needs to be updated according to
 			// current level's H and  T
@@ -215,10 +213,9 @@ bool CEES_Node::EE_draw(const gsl_rng *r, CStorageHead &storage)
 	if (next_level == NULL)
 		return false; 
 	int bin_id_next_level = next_level->BinID(ring_index_current); 
-	if (storage.empty(bin_id_next_level))
+	if (storage.empty(bin_id_next_level) || !storage.DrawSample(bin_id_next_level, r, x_new))
 		return false; 
 	
-	storage.DrawSample(bin_id_next_level, r, x_new); 	
 	// if x_new is adopted
 	// x_new.weight can be retained
 	// x_new.log_prob needs to be updated to reflect current level's H and T
