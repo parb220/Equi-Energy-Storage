@@ -3,6 +3,7 @@
 #include <cmath>
 #include <gsl/gsl_rng.h>
 #include <cstdio>
+#include <glob.h>
 #include "CPutGetBin.h"
 
 CPutGetBin::CPutGetBin(int _id, int _nDumpFile, int _capacityPut, int _capacityGet, string _grandPrefix)
@@ -203,27 +204,43 @@ bool CPutGetBin::ReadFromOneFile(int i, int &counter, const vector <int> &index)
 	return true; 
 }
 
-bool CPutGetBin::restore(int _nTotalSample)
+bool CPutGetBin::restore(int _dummy)
 {
-	int nTotalSample = _nTotalSample; 
-	nDumpFile = ceil((double)(nTotalSample)/capacityPut); 
-	nPutUsed = nTotalSample % capacityPut; 
-	if (nPutUsed > 0)
+	nDumpFile = GetNumberFileForDump(); 
+	if (nDumpFile > 0)
 	{
 		fstream iFile;
        	 	string file_name;
         	stringstream convert;
 
-        	convert.str(std::string());
+        	convert.str("");
         	convert << id << "." << nDumpFile-1; 
         	file_name = filename_prefix + convert.str();
 		iFile.open(file_name.c_str(), ios::in|ios::binary);
         	if (!iFile)
                 	return false;
-		if ((int)dataPut.size() < nPutUsed)
-			dataPut.resize(nPutUsed); 
-		for (int n=0; n<nPutUsed; n++)
-			read(iFile, &(dataPut[n])); 
+		
+		// To determine size of each record
+		CSampleIDWeight temp; 
+		read(iFile, &temp); 
+
+		iFile.seekg(0, ios::beg); 
+		iFile.seekg(0, ios::end); 
+		int lenFile = iFile.tellg(); 
+		iFile.seekg(0, ios::beg); 
+
+		nPutUsed = lenFile/temp.GetSize_Data(); 
+
+		if (nPutUsed < capacityPut)
+		{
+			if ((int)dataPut.size() < nPutUsed)
+				dataPut.resize(nPutUsed); 
+			for (int n=0; n<nPutUsed; n++)
+				read(iFile, &(dataPut[n])); 
+			nDumpFile --; 
+		}
+		else 
+			nPutUsed =0; 
 		iFile.close(); 
 	}
 	return true; 
@@ -274,4 +291,19 @@ bool CPutGetBin::if_fetchable()
 		return true; 
 	else 
 		return false; 
+}
+
+int CPutGetBin::GetNumberFileForDump() const
+{
+	stringstream convert; 
+	convert.str(""); 
+	convert << id << ".*"; // << "." << cluster_node; 
+
+	string filename_pattern = filename_prefix + convert.str(); 
+	
+	glob_t glob_result; 
+	glob(filename_pattern.c_str(), GLOB_TILDE, NULL, &glob_result); 
+	int final_result = (int)(glob_result.gl_pathc); 
+	globfree(&glob_result); 
+	return final_result; 
 }
