@@ -6,8 +6,9 @@
 #include <glob.h>
 #include "CPutGetBin.h"
 
-CPutGetBin::CPutGetBin(int _id, int _nDumpFile, int _capacityPut, int _capacityGet, string _grandPrefix)
+CPutGetBin::CPutGetBin(int _id, int _nDumpFile, int _capacityPut, int _capacityGet, string _grandPrefix, int _suffix )
 {
+	suffix = _suffix; 
 	id = _id; 
 	nDumpFile = _nDumpFile; 
 	
@@ -214,7 +215,7 @@ bool CPutGetBin::restore()
         	stringstream convert;
 
         	convert.str("");
-        	convert << id << "." << nDumpFile-1; 
+        	convert << id << "." << nDumpFile-1 << "." << suffix; 
         	file_name = filename_prefix + convert.str();
 		iFile.open(file_name.c_str(), ios::in|ios::binary);
         	if (!iFile)
@@ -275,7 +276,7 @@ void CPutGetBin::ClearDepositDrawHistory()
 string CPutGetBin::GetFileNameForDump() const
 {
 	stringstream convert;
-        convert << id << "." << nDumpFile;
+        convert << id << "." << nDumpFile << "." << suffix;
         string file_name = filename_prefix + convert.str();
 	return file_name; 
 }
@@ -297,7 +298,7 @@ int CPutGetBin::GetNumberFileForDump() const
 {
 	stringstream convert; 
 	convert.str(""); 
-	convert << id << ".*"; // << "." << cluster_node; 
+	convert << id << ".*." << suffix; // << "." << cluster_node; 
 
 	string filename_pattern = filename_prefix + convert.str(); 
 	
@@ -312,7 +313,7 @@ vector <string> CPutGetBin::GetFileNameForFetch() const
 {
 	stringstream convert;
         convert.str("");
-        convert << id << ".*"; // << ".*" // all cluster node; 
+        convert << id << ".*.*"; // << ".*" // all cluster node; 
 
         string filename_pattern = filename_prefix + convert.str();
 

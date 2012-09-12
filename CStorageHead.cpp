@@ -5,8 +5,9 @@
 
 using namespace std;
 
-CStorageHead::CStorageHead(int _run_id, int _get_marker, int _put_marker, int _number_bins, string file_location)
+CStorageHead::CStorageHead(int _run_id, int _get_marker, int _put_marker, int _number_bins, string file_location, int _node_index)
 {
+	cluster_node = _node_index;
 	run_id = _run_id; 
 	get_marker = _get_marker; 
 	put_marker = _put_marker; 
@@ -15,10 +16,10 @@ CStorageHead::CStorageHead(int _run_id, int _get_marker, int _put_marker, int _n
 
 	stringstream str; 
 	str << run_id << ".binary/"; 
-	CPutGetBin temp(0, 0, put_marker, get_marker, filename_base+str.str()); 
+	CPutGetBin temp(0, 0, put_marker, get_marker, filename_base+str.str(), cluster_node); 
 	bin = vector <CPutGetBin> (number_bins, temp); 
 	for (int i=0; i<number_bins; i++)
-		bin[i].SetBinID(i);
+		bin[i].SetBinID(i, cluster_node);
 }
 
 CStorageHead::~CStorageHead()

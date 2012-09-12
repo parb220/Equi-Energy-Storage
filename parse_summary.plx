@@ -78,13 +78,19 @@ my $mode = (stat($binary_dir))[2];
 my $text_dir = catdir($directory, $run_id.".text"); 
 mkdir($text_dir, $mode) or die $! unless -d $text_dir; 
 
-my ($binary_file, $text_file); 
+my ($file_pattern, $binary_file, $text_file, $file_index, $cluster_node_id); 
+my @glob_files; 
 foreach my $bin_index (0..$#bin)
 {
-	foreach my $file_index (0..$bin[$bin_index]->{"number of files"}-1)
+	$file_pattern = catfile($binary_dir, $bin_index.".*.*"); 
+	@glob_files = glob($file_pattern); 
+	foreach $binary_file (@glob_files)
 	{
-		$binary_file = catfile($binary_dir, $bin_index.".".$file_index); 
-		$text_file = catfile($text_dir, $bin_index.".".$file_index);  		
+		@terms = split/\./, $binary_file; 
+		$cluster_node_id = $terms[$#terms]; 
+		$file_index = $terms[$#terms-1]; 
+		# $binary_file = catfile($binary_dir, $bin_index.".".$file_index); 
+		$text_file = catfile($text_dir, $bin_index.".".$file_index.".".$cluster_node_id);  		
 		$cmd = "./binary2text " . $data_dimension . " " . $binary_file . " " . $text_file . " " . $put_marker; 
 		system($cmd); sleep(1);  
 	}
