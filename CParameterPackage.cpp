@@ -19,6 +19,7 @@ bool CParameterPackage::SaveParameterToFile(string file_name)
 	fstream oFile(file_name.c_str(), ios::out | ios::binary); 
 	if (!oFile)
 		return false; 
+	oFile.write((char*)(&number_cluster_node), sizeof(int)); 
 	oFile.write((char*)(&run_id), sizeof(int)); 
 	oFile.write((char*)(&get_marker), sizeof(int)); 
 	oFile.write((char*)(&put_marker), sizeof(int)); 
@@ -68,7 +69,7 @@ bool CParameterPackage::SaveParameterToFile(string file_name)
 	// for (int i=0; i<number_energy_level; i++)
 	//	oFile.write((char*)(&(energy_index_current[i])), sizeof(int)); 
 
-	for (int i=0; i<number_energy_level; i++)
+	for (int i=0; i<number_energy_level*number_cluster_node; i++)
 		write(oFile, &(x_current[i])); 
 	oFile.close(); 
 	return true;
@@ -79,6 +80,7 @@ bool CParameterPackage::LoadParameterFromFile(string file_name)
         fstream iFile(file_name.c_str(), ios::in | ios::binary);
         if (!iFile)
                 return false;
+	iFile.read((char*)(&number_cluster_node), sizeof(int)); 
         iFile.read((char*)(&run_id), sizeof(int));
         iFile.read((char*)(&get_marker), sizeof(int));
         iFile.read((char*)(&put_marker), sizeof(int));
@@ -137,10 +139,10 @@ bool CParameterPackage::LoadParameterFromFile(string file_name)
 	// for (int i=0; i<number_energy_level; i++) 
 	//	iFile.read((char*)(&(energy_index_current[i])), sizeof(int));
 
-	x_current.resize(number_energy_level); 
-	for (int i=0; i<number_energy_level; i++)
+	x_current.resize(number_energy_level*number_cluster_node); 
+	for (int i=0; i<number_energy_level*number_cluster_node; i++)
 		x_current[i].SetDataDimension(data_dimension); 
-	for (int i=0; i<number_energy_level; i++)
+	for (int i=0; i<number_energy_level*number_cluster_node; i++)
 		read(iFile, &(x_current[i])); 
 	
 	iFile.close(); 

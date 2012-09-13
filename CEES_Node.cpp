@@ -397,40 +397,43 @@ void CEES_Node::DisregardHistorySamples(CStorageHead &storage)
 	}
 }
 
-void CParameterPackage::TraceSimulator(const CEES_Node &simulator)
+void CParameterPackage::TraceSimulator(const CEES_Node &simulator, int _node_index)
 {
 	int id = simulator.id; 
-	if (id == 0)
+	if (_node_index == 0)
 	{
-		if ((int)h.size() < CEES_Node::K)
-			h.resize(CEES_Node::K);
-        	for (int i=0; i<CEES_Node::K; i++)
-			h[i] = CEES_Node::H[i];
+		if (id == 0)
+		{
+			if ((int)h.size() < CEES_Node::K)
+				h.resize(CEES_Node::K);
+        		for (int i=0; i<CEES_Node::K; i++)
+				h[i] = CEES_Node::H[i];
 	
-		if ((int)t.size() < CEES_Node::K)
-			t.resize(CEES_Node::K);
-		for (int i=0; i<CEES_Node::K; i++)
-        		t[i] = CEES_Node::T[i];
-	}
+			if ((int)t.size() < CEES_Node::K)
+				t.resize(CEES_Node::K);
+			for (int i=0; i<CEES_Node::K; i++)
+        			t[i] = CEES_Node::T[i];
+		}
         
-	if ((int)x_current.size() < CEES_Node::K)
-        	x_current.resize(CEES_Node::K) ;
-	//if ((int)energy_index_current.size() < CEES_Node::K)
-       	//	energy_index_current.resize(CEES_Node::K);
-	if ((int)scale.size() < CEES_Node::K)
-        	scale.resize(CEES_Node::K); 
+		if ((int)x_current.size() < CEES_Node::K*number_cluster_node)
+        		x_current.resize(CEES_Node::K*number_cluster_node) ;
+		//if ((int)energy_index_current.size() < CEES_Node::K)
+       		//	energy_index_current.resize(CEES_Node::K);
+		if ((int)scale.size() < CEES_Node::K)
+        		scale.resize(CEES_Node::K); 
 
-	x_current[id] = simulator.x_current; 
         // energy_index_current[id] = simulator.ring_index_current;
-	if ((int)scale[id].size() < CEES_Node::dataDim)
-		scale[id].resize(CEES_Node::dataDim); 
-	int dim_cum_sum =0; 
-        for (int iBlock=0; iBlock<CEES_Node::nBlock; iBlock++)
-        {
-                for (int j=0; j<CEES_Node::blockSize[iBlock]; j++)
-                        scale[id][j+dim_cum_sum] = simulator.proposal[iBlock]->get_step_size(j);
-		dim_cum_sum += CEES_Node::blockSize[iBlock]; 
-        }
+		if ((int)scale[id].size() < CEES_Node::dataDim)
+			scale[id].resize(CEES_Node::dataDim); 
+		int dim_cum_sum =0; 
+        	for (int iBlock=0; iBlock<CEES_Node::nBlock; iBlock++)
+        	{
+                	for (int j=0; j<CEES_Node::blockSize[iBlock]; j++)
+                        	scale[id][j+dim_cum_sum] = simulator.proposal[iBlock]->get_step_size(j);
+			dim_cum_sum += CEES_Node::blockSize[iBlock]; 
+        	}
+	}
+	x_current[_node_index*CEES_Node::K+id] = simulator.x_current; 
 }
 
 double CEES_Node::LogProbRatio_Energy(double energy_x, double energy_y)
