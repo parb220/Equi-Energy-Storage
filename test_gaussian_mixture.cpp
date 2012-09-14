@@ -274,7 +274,7 @@ int main(int argc, char **argv)
 	else 
 	{
 		for (int i=CEES_Node::GetEnergyLevelNumber()-1; i>=0; i--)
-			simulator_node[i].Initialize(parameter.GetCurrentState(i,0));
+			simulator_node[i].Initialize(parameter.GetCurrentState(i));
 	}
 	delete [] temp_buffer_float; 
 	

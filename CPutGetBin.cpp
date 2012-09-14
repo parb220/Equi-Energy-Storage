@@ -214,7 +214,7 @@ bool CPutGetBin::restore()
        	 	string file_name;
         	stringstream convert;
 
-        	convert.str("");
+        	convert.str(string());
         	convert << id << "." << nDumpFile-1 << "." << suffix; 
         	file_name = filename_prefix + convert.str();
 		iFile.open(file_name.c_str(), ios::in|ios::binary);
@@ -297,7 +297,7 @@ bool CPutGetBin::if_fetchable()
 int CPutGetBin::GetNumberFileForDump() const
 {
 	stringstream convert; 
-	convert.str(""); 
+	convert.str(string()); 
 	convert << id << ".*." << suffix; // << "." << cluster_node; 
 
 	string filename_pattern = filename_prefix + convert.str(); 
@@ -312,7 +312,7 @@ int CPutGetBin::GetNumberFileForDump() const
 vector <string> CPutGetBin::GetFileNameForFetch() const
 {
 	stringstream convert;
-        convert.str("");
+        convert.str(string());
         convert << id << ".*.*"; // << ".*" // all cluster node; 
 
         string filename_pattern = filename_prefix + convert.str();

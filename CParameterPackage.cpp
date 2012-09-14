@@ -14,7 +14,7 @@ CParameterPackage::~CParameterPackage()
 {
 }		
 
-bool CParameterPackage::SaveParameterToFile(string file_name)
+bool CParameterPackage::SaveParameterToFile(string file_name) const
 {
 	fstream oFile(file_name.c_str(), ios::out | ios::binary); 
 	if (!oFile)
@@ -57,8 +57,9 @@ bool CParameterPackage::SaveParameterToFile(string file_name)
 	// for (int i=0; i<number_bins; i++)
 	//	oFile.write((char*)(&(number_samples_generated_by_far[i])), sizeof(int));
 	
-	for (int i=0; i<number_bins; i++)
+	/*for (int i=0; i<number_bins; i++)
 		oFile.write((char*)(&(number_files_fetch[i])), sizeof(int)); 
+	*/
 
 	for (int i=0; i<number_energy_level; i++)
 		oFile.write((char*)(&(h[i])), sizeof(double));
@@ -68,8 +69,17 @@ bool CParameterPackage::SaveParameterToFile(string file_name)
 
 	// for (int i=0; i<number_energy_level; i++)
 	//	oFile.write((char*)(&(energy_index_current[i])), sizeof(int)); 
+	oFile.close(); 
+	return true; 
+}
 
-	for (int i=0; i<number_energy_level*number_cluster_node; i++)
+bool CParameterPackage::SaveCurrentStateToFile(string file_name) const
+{
+	fstream oFile(file_name.c_str(), ios::out | ios::binary);
+        if (!oFile)
+                return false;
+
+	for (int i=0; i<number_energy_level; i++)
 		write(oFile, &(x_current[i])); 
 	oFile.close(); 
 	return true;
@@ -123,10 +133,11 @@ bool CParameterPackage::LoadParameterFromFile(string file_name)
 	// for (int i=0; i<number_bins; i++)
         //	iFile.read((char*)(&(number_samples_generated_by_far[i])), sizeof(int));
 
-	number_files_fetch.resize(number_bins); 
+	/*number_files_fetch.resize(number_bins); 
 	for (int i=0; i<number_bins; i++)
 		iFile.read((char*)(&(number_files_fetch[i])), sizeof(int)); 
-        
+        */
+
 	h.resize(number_energy_level);
 	for (int i=0; i<number_energy_level; i++) 
 		iFile.read((char*)(&(h[i])), sizeof(double));
@@ -134,22 +145,26 @@ bool CParameterPackage::LoadParameterFromFile(string file_name)
 	t.resize(number_energy_level);
 	for (int i=0; i<number_energy_level; i++) 
 		iFile.read((char*)(&(t[i])), sizeof(double));
-        
-	// energy_index_current.resize(number_energy_level);
-	// for (int i=0; i<number_energy_level; i++) 
-	//	iFile.read((char*)(&(energy_index_current[i])), sizeof(int));
 
-	x_current.resize(number_energy_level*number_cluster_node); 
-	for (int i=0; i<number_energy_level*number_cluster_node; i++)
-		x_current[i].SetDataDimension(data_dimension); 
-	for (int i=0; i<number_energy_level*number_cluster_node; i++)
-		read(iFile, &(x_current[i])); 
-	
 	iFile.close(); 
 	return true; 
 }
 
-bool CParameterPackage::WriteSummaryFile(string file_name)
+bool CParameterPackage::LoadCurrentStateFromFile(string file_name)
+{
+	x_current.resize(number_energy_level); 
+	for (int i=0; i<number_energy_level; i++)
+		x_current[i].SetDataDimension(data_dimension);
+	fstream iFile(file_name.c_str(), ios::in | ios::binary);
+        if (!iFile)
+                return false;
+	for (int i=0; i<number_energy_level; i++)
+		read(iFile, &(x_current[i])); 	
+	iFile.close(); 
+	return true; 
+}
+
+bool CParameterPackage::WriteSummaryFile(string file_name) const
 {
 	ofstream oFile; 
 	oFile.open(file_name.c_str(), ios::out); 
@@ -309,3 +324,4 @@ void CParameterPackage::GetBlockSize(int *_buffer, int _buffer_size) const
 	for (int i=0; i<number_block; i++)
 		_buffer[i] = block_size[i]; 
 }
+
