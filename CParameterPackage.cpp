@@ -57,9 +57,8 @@ bool CParameterPackage::SaveParameterToFile(string file_name) const
 	// for (int i=0; i<number_bins; i++)
 	//	oFile.write((char*)(&(number_samples_generated_by_far[i])), sizeof(int));
 	
-	/*for (int i=0; i<number_bins; i++)
+	for (int i=0; i<number_bins; i++)
 		oFile.write((char*)(&(number_files_fetch[i])), sizeof(int)); 
-	*/
 
 	for (int i=0; i<number_energy_level; i++)
 		oFile.write((char*)(&(h[i])), sizeof(double));
@@ -133,10 +132,9 @@ bool CParameterPackage::LoadParameterFromFile(string file_name)
 	// for (int i=0; i<number_bins; i++)
         //	iFile.read((char*)(&(number_samples_generated_by_far[i])), sizeof(int));
 
-	/*number_files_fetch.resize(number_bins); 
+	number_files_fetch.resize(number_bins); 
 	for (int i=0; i<number_bins; i++)
 		iFile.read((char*)(&(number_files_fetch[i])), sizeof(int)); 
-        */
 
 	h.resize(number_energy_level);
 	for (int i=0; i<number_energy_level; i++) 
