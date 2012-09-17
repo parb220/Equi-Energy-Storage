@@ -162,6 +162,7 @@ bool CParameterPackage::LoadCurrentStateFromFile(string file_name)
 	return true; 
 }
 
+
 bool CParameterPackage::WriteSummaryFile(string file_name) const
 {
 	ofstream oFile; 

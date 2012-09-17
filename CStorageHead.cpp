@@ -98,3 +98,35 @@ void CParameterPackage::TraceStorageHead(const CStorageHead &storage)
 	}
 }
 
+bool CParameterPackage::LoadCurrentStateFromStorage(CStorageHead &storage, const gsl_rng *r)
+{
+	x_current.resize(number_energy_level);
+        for (int i=0; i<number_energy_level; i++)
+                x_current[i].SetDataDimension(data_dimension);
+	
+	int bin_id, try_id; 
+	bool if_success; 
+	for (int i=0; i<number_energy_level; i++)
+	{
+		try_id = i; 
+		bin_id = i*number_energy_level + try_id; 
+		while (try_id >=0 && (storage.empty(bin_id) || !(if_success = storage.DrawSample(bin_id, r, x_current[i])) ) )
+		{
+			try_id --; 
+			bin_id = i*number_energy_level + try_id;
+		}
+		if (!if_success)
+		{
+			try_id = i+1; 
+			bin_id = i*number_energy_level + try_id;
+			while (try_id < number_energy_level && (storage.empty(bin_id) || !(if_success = storage.DrawSample(bin_id, r, x_current[i])) ) )
+			{
+				try_id ++; 
+				bin_id = i*number_energy_level + try_id; 
+			}
+		}
+		if (!if_success)
+			return false; 
+	}
+	return true; 
+}
