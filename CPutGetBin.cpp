@@ -210,39 +210,31 @@ bool CPutGetBin::restore()
 	nDumpFile = GetNumberFileForDump(); 
 	if (nDumpFile > 0)
 	{
-		fstream iFile;
        	 	string file_name;
         	stringstream convert;
 
         	convert.str(string());
         	convert << id << "." << nDumpFile-1 << "." << suffix; 
         	file_name = filename_prefix + convert.str();
-		iFile.open(file_name.c_str(), ios::in|ios::binary);
-        	if (!iFile)
-                	return false;
-		
-		// To determine size of each record
-		CSampleIDWeight temp; 
-		read(iFile, &temp); 
-
-		iFile.seekg(0, ios::beg); 
-		iFile.seekg(0, ios::end); 
-		int lenFile = iFile.tellg(); 
-		iFile.seekg(0, ios::beg); 
-
-		nPutUsed = lenFile/temp.GetSize_Data(); 
-
-		if (nPutUsed < capacityPut)
+		nPutUsed = NumberRecord(file_name); 
+		if (nPutUsed >0 && nPutUsed < capacityPut)
 		{
+			fstream iFile;
+			iFile.open(file_name.c_str(), ios::in|ios::binary);
+        		if (!iFile)
+                		return false;
+
 			if ((int)dataPut.size() < nPutUsed)
 				dataPut.resize(nPutUsed); 
 			for (int n=0; n<nPutUsed; n++)
 				read(iFile, &(dataPut[n])); 
+			iFile.close(); 
 			nDumpFile --; 
 		}
-		else 
+		else if (nPutUsed == capacityPut)
 			nPutUsed =0; 
-		iFile.close(); 
+		else 
+			return false; 
 	}
 	return true; 
 }
@@ -322,9 +314,9 @@ vector <string> CPutGetBin::GetFileNameForFetch() const
 	vector <string> filename_fetch; 
 	if (glob_result.gl_pathc > 0)
 	{
-		filename_fetch.resize(glob_result.gl_pathc); 
 		for (int i=0; i<(int)(glob_result.gl_pathc); i++)
-			filename_fetch[i] = string(glob_result.gl_pathv[i]); 
+			if (NumberRecord(string(glob_result.gl_pathv[i])) == capacityPut)
+				filename_fetch.push_back(string(glob_result.gl_pathv[i])); 
 	}
 	else 
 		filename_fetch.clear(); 
@@ -337,3 +329,24 @@ int CPutGetBin::GetNumberFileForFetch() const
 	vector <string> file_fetch = GetFileNameForFetch();
 	return (int)(file_fetch.size()); 
 }
+
+int CPutGetBin::NumberRecord(string file_name) const
+{
+	ifstream iFile; 
+	iFile.open(file_name.c_str(), ios::in|ios::binary);
+        if (!iFile)
+		return -1;
+	
+	// To determine size of each record
+	CSampleIDWeight temp; 
+	read(iFile, &temp); 
+
+	iFile.seekg(0, ios::beg); 
+	iFile.seekg(0, ios::end); 
+	int lenFile = iFile.tellg(); 
+	int number_record = lenFile/temp.GetSize_Data(); 
+	iFile.close(); 
+	return number_record; 
+}
+
+
