@@ -15,7 +15,7 @@ CStorageHead::CStorageHead(int _run_id, int _get_marker, int _put_marker, int _n
 	filename_base = file_location; 
 
 	stringstream str; 
-	str << run_id << ".binary/"; 
+	str << run_id << "/" << run_id << ".binary/"; 
 	CPutGetBin temp(0, 0, put_marker, get_marker, filename_base+str.str(), cluster_node); 
 	bin = vector <CPutGetBin> (number_bins, temp); 
 	for (int i=0; i<number_bins; i++)
@@ -55,9 +55,17 @@ bool CStorageHead::empty(int _bin_id)
 bool CStorageHead::makedir()
 {
 	stringstream str; 
-	str << run_id << ".binary" ; 
+	str.str(string()); 
+	str << run_id; 
 	string dir = filename_base + str.str(); 
-	int status = mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH); 
+	int status = mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	if (status !=0 && status != EEXIST)
+		return false;
+ 
+	str.str(string()); 
+	str << run_id << "/" << run_id << ".binary" ; 
+	dir = filename_base + str.str(); 
+	status = mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH); 
 	if (status == 0 || status == EEXIST)
 		return true; 
 	else 

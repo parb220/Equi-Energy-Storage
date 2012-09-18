@@ -123,7 +123,7 @@ int main(int argc, char **argv)
 	if (if_continue)
 	{
 		convert.str(std::string()); 
-		convert << _run_id << ".parameter"; 
+		convert << _run_id << "/" << _run_id << ".parameter"; 
 		file_name = storage_filename_base + convert.str(); 
 		parameter.LoadParameterFromFile(file_name); 
 	}
@@ -290,13 +290,13 @@ int main(int argc, char **argv)
 	for (int i=0; i<CEES_Node::GetEnergyLevelNumber(); i++)
 		parameter.TraceSimulator(simulator_node[i]);  
 	convert.str(std::string()); 
-	convert << parameter.run_id << ".parameter"; 
+	convert << parameter.run_id << "/" << parameter.run_id <<  ".parameter"; 
 	file_name = storage_filename_base + convert.str();  
 	parameter.SaveParameterToFile(file_name);
 
 	// save parameters into a text file
 	convert.str(std::string()); 
-	convert << parameter.run_id << ".summary"; 
+	convert << parameter.run_id << "/" << parameter.run_id << ".summary"; 
 	file_name = storage_filename_base + convert.str(); 
 	parameter.WriteSummaryFile(file_name); 
 
