@@ -104,31 +104,11 @@ bool CParameterPackage::LoadCurrentStateFromStorage(CStorageHead &storage, const
         for (int i=0; i<number_energy_level; i++)
                 x_current[i].SetDataDimension(data_dimension);
 	
-	int bin_id, energy_id, level_id; 
+	int bin_id, try_id; 
 	bool if_success; 
-	energy_id =0;
 	for (int i=0; i<number_energy_level; i++)
 	{
 		if_success = false; 
-		energy_id = 0; 
-		while(energy_id < number_energy_level && !if_success)
-		{
-			level_id = 0; 
-			while(level_id < number_energy_level && !if_success)
-			{
-				bin_id = level_id * number_energy_level + energy_id; 
-				if_success = storage.DrawSample(bin_id, r, x_current[i]); 
-				level_id ++; 
-			}
-			energy_id ++; 
-		}
-		if (!if_success)
-			return false; 
-	}	
-	return true; 
-	 
-	/*for (int i=0; i<number_energy_level; i++)
-	{
 		try_id = i; 
 		bin_id = i*number_energy_level + try_id; 
 		while (try_id >=0 && (storage.empty(bin_id) || !(if_success = storage.DrawSample(bin_id, r, x_current[i])) ) )
@@ -149,5 +129,5 @@ bool CParameterPackage::LoadCurrentStateFromStorage(CStorageHead &storage, const
 		if (!if_success)
 			return false; 
 	}
-	return true; */
+	return true; 
 }
