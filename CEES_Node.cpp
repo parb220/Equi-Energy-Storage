@@ -12,7 +12,7 @@ vector <double> CEES_Node::H;
 vector <double> CEES_Node::T; 
 double CEES_Node::pee; 
 int CEES_Node::dataDim; 
-CModel * CEES_Node::ultimate_target;
+// CModel * CEES_Node::ultimate_target;
 vector <double> CEES_Node::targetAcc;
 int CEES_Node:: min_max_energy_capacity; 
 
@@ -31,7 +31,14 @@ CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel *transition, CEES_Node *
 	x_current.SetDataDimension(dataDim); 
 	x_new.SetDataDimension(dataDim); 
 
-	target = new CBoundedModel(H[id], T[id], ultimate_target); 
+	// target = new CBoundedModel(H[id], T[id], ultimate_target); 
+	// Because ultimate_target is not a static variable, 
+	// it must be set explicitly.
+	// Therefore, ultimate_target and target will be set outside the 
+	// construction function.
+	ultimate_target = NULL; 
+	target = NULL; 
+	
 	ring_size = vector< int> (K, 0);
 }
 
@@ -48,7 +55,14 @@ CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel **transition, CEES_Node 
         x_current.SetDataDimension(dataDim);
         x_new.SetDataDimension(dataDim); 
 
-        target = new CBoundedModel(H[id], T[id], ultimate_target);
+        // target = new CBoundedModel(H[id], T[id], ultimate_target);
+        // Because ultimate_target is not a static variable, 
+        // it must be set explicitly.
+        // Therefore, ultimate_target and target will be set outside the 
+        // construction function.
+       
+        ultimate_target = NULL; 
+	target = NULL;  
         ring_size = vector< int> (K, 0);
 }
 

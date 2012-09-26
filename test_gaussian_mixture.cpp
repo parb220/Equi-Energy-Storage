@@ -193,7 +193,7 @@ int main(int argc, char **argv)
 	CEES_Node::SetEnergyLevelNumber(parameter.number_energy_level);	// Number of energy levels; 
 	CEES_Node::SetEquiEnergyJumpProb(parameter.pee);	// Probability for equal energy jump
 	CEES_Node::SetDataDimension(parameter.data_dimension); 	// Data dimension for simulation
-	CEES_Node::ultimate_target = &target;			// Ultimate target distribution
+	// CEES_Node::ultimate_target = &target;			// Ultimate target distribution
 
 	/*
  	Set energy levels according to the geometric progression given H0 and H[K-1]
@@ -223,6 +223,7 @@ int main(int argc, char **argv)
 	temp_buffer_float = new double[parameter.data_dimension]; 
  	for (int i=0; i<parameter.number_energy_level; i++)
 	{
+		simulator_node[i].ultimate_target = &target; 
 		simulator_node[i].SetID_LocalTarget(i); 	// Also set the local target distribution here
 		if (i < parameter.number_energy_level -1)
 			simulator_node[i].SetHigherNodePointer(simulator_node+i+1);
