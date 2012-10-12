@@ -81,12 +81,24 @@ void CStorageHead::finalize()
 
 void CStorageHead::DisregardHistorySamples(int bin_id)
 {
-	bin[bin_id].DisregardHistorySamples(); 
+	if (bin_id >= 0 && bin_id < number_bins)
+		bin[bin_id].DisregardHistorySamples();
+	else 
+	{
+		for (int i=0; i<number_bins; i++)
+			bin[i].DisregardHistorySamples(); 
+	} 
 }
 
 void CStorageHead::ClearDepositDrawHistory(int bin_id)
 {
-	bin[bin_id].ClearDepositDrawHistory(); 
+	if (bin_id >= 0 && bin_id < number_bins)
+		bin[bin_id].ClearDepositDrawHistory(); 
+	else 
+	{
+		for (int i=0; i<number_bins; i++)
+			bin[i].ClearDepositDrawHistory(); 
+	}
 }
 
 void CStorageHead::restore()

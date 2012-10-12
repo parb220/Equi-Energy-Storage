@@ -265,6 +265,13 @@ bool CParameterPackage::SetMHProposalScale()
 	return true; 
 }
 
+void CParameterPackage::SetMHProposalScale(int level, const double *_s, int _ns)
+{
+	scale.resize(number_energy_level);
+	for (int j=0; j<data_dimension; j++)
+		scale[level][j] = _s[j]; 
+}
+
 void CParameterPackage::SetCurrentState(const gsl_rng *r)
 {
 	double *lB = new double [data_dimension];
@@ -282,6 +289,14 @@ void CParameterPackage::SetCurrentState(const gsl_rng *r)
 	delete [] lB; 
 	delete [] uB; 
 }
+
+void CParameterPackage::SetCurrentState(int level, const double *_x, int _nx)
+{
+	x_current.resize(number_energy_level); 
+	x_current[level] = CSampleIDWeight(_x, _nx); 
+}
+
+
 
 void CParameterPackage::SetBlock(int *_block_size)
 {

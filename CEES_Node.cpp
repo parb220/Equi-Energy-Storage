@@ -393,24 +393,6 @@ void CEES_Node::SetBlockSize(const int* _bSize, int _nB)
 	}
 }
 
-void CEES_Node::DisregardHistorySamples(CStorageHead &storage)
-{
-	// keep current sample
-	ring_index_current = GetRingIndex(x_current.GetWeight());
-        vector <int> old_ring_size = ring_size;
-        ring_size = vector <int> (ring_size.size(), 0);
-        ring_size[ring_index_current] ++;
-	
-	// clear samples from storage
-	int storage_bin_id; 
-	for (int bin_id =0; bin_id <K; bin_id++)
-	{
-		storage_bin_id = BinID(bin_id); 
-		storage.DisregardHistorySamples(storage_bin_id); 
-		storage.ClearDepositDrawHistory(storage_bin_id); 
-	}
-}
-
 void CParameterPackage::TraceSimulator(const CEES_Node &simulator)
 {
 	int id = simulator.id; 

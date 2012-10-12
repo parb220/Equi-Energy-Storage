@@ -32,12 +32,9 @@ bool TuneEnergyLevels_UpdateStorage(CEES_Node *simulator, CStorageHead &storage,
 		// Re-adjust local target distribution and process samples that have been generated; 
 		// storage.CreateTemporaryBin(); 
 		for (int i=0; i<CEES_Node::K; i++)
-		{
 			simulator[i].AdjustLocalTarget(); 
 			// simulator[i].AssignSamplesGeneratedSoFar(storage); 
-			simulator[i].DisregardHistorySamples(storage); 
-		}
-		// storage.ClearTemporaryBin(); 
+		storage.DisregardHistorySamples(); 
 		return true; 
 	}
 	return false; 
