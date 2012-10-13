@@ -79,10 +79,13 @@ void CStorageHead::finalize()
 }
 
 
-void CStorageHead::DisregardHistorySamples(int bin_id)
+void CStorageHead::DisregardHistorySamples(int start_bin, int end_bin)
 {
-	if (bin_id >= 0 && bin_id < number_bins)
-		bin[bin_id].DisregardHistorySamples();
+	if (start_bin >=0 && start_bin < number_bins && end_bin >= 0 && end_bin < number_bins && start_bin <= end_bin)
+	{
+		for (int i=start_bin; i<=end_bin; i++)
+			bin[i].DisregardHistorySamples();
+	}
 	else 
 	{
 		for (int i=0; i<number_bins; i++)
@@ -90,14 +93,31 @@ void CStorageHead::DisregardHistorySamples(int bin_id)
 	} 
 }
 
-void CStorageHead::ClearDepositDrawHistory(int bin_id)
+void CStorageHead::ClearDepositDrawHistory(int start_bin, int end_bin)
 {
-	if (bin_id >= 0 && bin_id < number_bins)
-		bin[bin_id].ClearDepositDrawHistory(); 
+	if (start_bin >=0 && start_bin < number_bins && end_bin >= 0 && end_bin < number_bins && start_bin <= end_bin)
+	{
+		for (int i=start_bin; i<=end_bin; i++)
+			bin[i].ClearDepositDrawHistory(); 
+	}
 	else 
 	{
 		for (int i=0; i<number_bins; i++)
 			bin[i].ClearDepositDrawHistory(); 
+	}
+}
+
+void CStorageHead::consolidate(int start_bin, int end_bin)
+{
+	if (start_bin >=0 && start_bin < number_bins && end_bin >= 0 && end_bin < number_bins && start_bin <= end_bin)
+	{
+		for (int i=start_bin; i<=end_bin; i++)
+			bin[i].consolidate(); 
+	}
+	else 
+	{
+		for (int i=0; i<number_bins; i++)
+			bin[i].consolidate(); 
 	}
 }
 

@@ -77,9 +77,13 @@ int CPutGetBin::DepositSample(const double *x, int x_d, int x_index, double x_we
 	return nDumpFile*capacityPut+nPutUsed;
 }
 
-bool CPutGetBin::Dump()
+bool CPutGetBin::Dump(string _filename)
 {
-	string file_name = GetFileNameForDump(); 
+	string file_name; 
+	if (_filename.empty())
+		file_name = GetFileNameForDump(); 
+	else 
+		file_name = _filename; 
 	fstream oFile(file_name.c_str(), ios::out | ios::binary); 
 	if (!oFile)
 		return false; 
@@ -205,6 +209,41 @@ bool CPutGetBin::ReadFromOneFile(string file_name, int &counter, const vector <i
 	return true; 
 }
 
+void CPutGetBin::consolidate()
+{
+	vector < string> file_consolidate = GetFileNameForConsolidate(); 
+	if (file_consolidate.size() >= 2)
+	{
+		vector <CSampleIDWeight> sample_consolidate; 
+		vector <CSampleIDWeight> temp_sample; 
+		for (int i=0; i<(int)(file_consolidate.size()); i++)
+		{
+			temp_sample = ReadSampleFromFile(file_consolidate[i]); 
+			sample_consolidate.insert(sample_consolidate.end(), temp_sample.begin(), temp_sample.end()); 
+			remove(file_consolidate[i].c_str()); 
+		}
+		int nComplete = (int)(sample_consolidate.size())/capacityPut; 
+		int nRemaining = (int)(sample_consolidate.size())%capacityPut; 
+		for (int iComplete=0; iComplete<nComplete; iComplete ++)
+		{
+			dataPut.resize(capacityPut); 
+			for (int j=0; j<capacityPut; j++)
+				dataPut[j] = sample_consolidate[j+iComplete*capacityPut]; 
+			nPutUsed = capacityPut; 
+			Dump(file_consolidate[iComplete]); 
+		}
+		if (nRemaining > 0)
+		{
+			if ((int)(dataPut.size()) < nRemaining)
+				dataPut.resize(nRemaining); 
+			for (int j=0; j<capacityPut; j++)
+				dataPut[j] = sample_consolidate[j+nComplete*capacityPut]; 
+			nPutUsed = nRemaining; 
+			Dump(file_consolidate[nComplete]); 
+		}
+	}
+}
+
 bool CPutGetBin::restore()
 {
 	nDumpFile = GetNumberFileForDump(); 
@@ -216,27 +255,32 @@ bool CPutGetBin::restore()
         	convert.str(string());
         	convert << id << "." << nDumpFile-1 << "." << suffix; 
         	file_name = filename_prefix + convert.str();
-		nPutUsed = NumberRecord(file_name); 
+		dataPut = ReadSampleFromFile(file_name); 
+		nPutUsed = (int)(dataPut.size()); 
+ 
 		if (nPutUsed >0 && nPutUsed < capacityPut)
-		{
-			fstream iFile;
-			iFile.open(file_name.c_str(), ios::in|ios::binary);
-        		if (!iFile)
-                		return false;
-
-			if ((int)dataPut.size() < nPutUsed)
-				dataPut.resize(nPutUsed); 
-			for (int n=0; n<nPutUsed; n++)
-				read(iFile, &(dataPut[n])); 
-			iFile.close(); 
 			nDumpFile --; 
-		}
 		else if (nPutUsed == capacityPut)
 			nPutUsed =0; 
-		else 
-			return false; 
 	}
 	return true; 
+}
+
+vector < CSampleIDWeight> CPutGetBin::ReadSampleFromFile(string file_name) const
+{
+	int nRecord = NumberRecord(file_name); 
+	if (nRecord == 0)
+		return vector<CSampleIDWeight> (0);
+	fstream iFile;
+        iFile.open(file_name.c_str(), ios::in|ios::binary);
+        if (!iFile)
+        	return vector<CSampleIDWeight> (0); 
+
+        vector <CSampleIDWeight> sample(nRecord); 
+        for(int n=0; n<nRecord; n++)
+		read(iFile, &(sample[n]));
+        iFile.close();
+	return sample; 
 }
 
 void CPutGetBin::finalize()
@@ -324,6 +368,28 @@ vector <string> CPutGetBin::GetFileNameForFetch() const
         return filename_fetch; 
 }
 
+vector <string> CPutGetBin::GetFileNameForConsolidate() const
+{
+	stringstream convert;
+        convert.str(string());
+        convert << id << ".*.*"; // << ".*" // all cluster node; 
+
+        string filename_pattern = filename_prefix + convert.str();
+
+        glob_t glob_result;
+        glob(filename_pattern.c_str(), GLOB_TILDE, NULL, &glob_result);
+	vector <string> filename_consolidate; 
+	if (glob_result.gl_pathc > 0)
+	{
+		for (int i=0; i<(int)(glob_result.gl_pathc); i++)
+			if (NumberRecord(string(glob_result.gl_pathv[i])) < capacityPut)
+				filename_consolidate.push_back(string(glob_result.gl_pathv[i])); 
+	}
+	else 
+		filename_consolidate.clear(); 
+        globfree(&glob_result);
+        return filename_consolidate; 
+}
 int CPutGetBin::GetNumberFileForFetch() const
 {
 	vector <string> file_fetch = GetFileNameForFetch();
