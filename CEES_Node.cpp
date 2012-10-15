@@ -19,6 +19,23 @@ int CEES_Node:: min_max_energy_capacity;
 int CEES_Node::nBlock; 
 vector < int > CEES_Node::blockSize;
 
+CEES_Node::CEES_Node()
+{
+	id = 0;  
+	nSamplesGenerated = 0; 
+
+	proposal = new CTransitionModel *[nBlock]; 
+	for (int i=0; i<nBlock; i++)
+		proposal[i] = NULL; 
+	next_level = NULL;
+	
+	x_current.SetDataDimension(dataDim); 
+	x_new.SetDataDimension(dataDim); 
+
+	ultimate_target = NULL; 
+	target = NULL; 
+}
+
 CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel *transition, CEES_Node *pNext)
 {
 	id = iEnergyLevel; 
@@ -26,6 +43,8 @@ CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel *transition, CEES_Node *
 
 	proposal = new CTransitionModel *[nBlock]; 
 	proposal[0] = transition;
+	for (int i=1; i<nBlock; i++)
+		proposal[i] = NULL; 
 	next_level = pNext;
 	
 	x_current.SetDataDimension(dataDim); 
@@ -38,8 +57,6 @@ CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel *transition, CEES_Node *
 	// construction function.
 	ultimate_target = NULL; 
 	target = NULL; 
-	
-	ring_size = vector< int> (K, 0);
 }
 
 CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel **transition, CEES_Node *pNext)
@@ -63,7 +80,6 @@ CEES_Node::CEES_Node(int iEnergyLevel, CTransitionModel **transition, CEES_Node 
        
         ultimate_target = NULL; 
 	target = NULL;  
-        ring_size = vector< int> (K, 0);
 }
 
 void CEES_Node::SetID_LocalTarget(int iEnergyLevel)
@@ -78,7 +94,8 @@ CEES_Node::~CEES_Node()
 		delete target;
 
 	for (int iBlock =0; iBlock <nBlock; iBlock++)
-		delete proposal[iBlock]; 
+		if (proposal[iBlock])
+			delete proposal[iBlock]; 
 	delete []proposal; 
 }
 
@@ -348,7 +365,6 @@ void CEES_Node::Simulate(const gsl_rng *r, CStorageHead &storage, int N, int dep
 			bin_id = BinID(ring_index_current); 
 			x_current.SetID(nSamplesGenerated); 
 			storage.DepositSample(bin_id, x_current); 
-			ring_size[ring_index_current] ++; 
 		}
 		nSamplesGenerated++;	
 	}

@@ -236,7 +236,7 @@ void CPutGetBin::consolidate()
 		{
 			if ((int)(dataPut.size()) < nRemaining)
 				dataPut.resize(nRemaining); 
-			for (int j=0; j<capacityPut; j++)
+			for (int j=0; j<nRemaining; j++)
 				dataPut[j] = sample_consolidate[j+nComplete*capacityPut]; 
 			nPutUsed = nRemaining; 
 			Dump(file_consolidate[nComplete]); 
@@ -244,7 +244,7 @@ void CPutGetBin::consolidate()
 	}
 }
 
-bool CPutGetBin::restore()
+void CPutGetBin::restore()
 {
 	nDumpFile = GetNumberFileForDump(); 
 	if (nDumpFile > 0)
@@ -263,8 +263,26 @@ bool CPutGetBin::restore()
 		else if (nPutUsed == capacityPut)
 			nPutUsed =0; 
 	}
-	return true; 
 }
+
+void CPutGetBin::RestoreForFetch()
+{
+	vector <string> filename_partial = GetFileNameForConsolidate(); 
+	// After consolidation, there should be at most 1 partial file
+	if (!filename_partial.empty())
+	{
+		vector<CSampleIDWeight> tempSample = ReadSampleFromFile(filename_partial[0]); 
+		if (!tempSample.empty())
+		{
+			nPutUsed = (int)(tempSample.size()); 
+			if (dataPut.size() < tempSample.size())
+				dataPut.resize(capacityPut); 
+			for (int j=0; j<(int)(tempSample.size()); j++)
+				dataPut[j] = tempSample[j]; 
+		}
+	}
+}
+
 
 vector < CSampleIDWeight> CPutGetBin::ReadSampleFromFile(string file_name) const
 {

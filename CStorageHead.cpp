@@ -72,10 +72,18 @@ bool CStorageHead::makedir()
 		return false; 
 }
 
-void CStorageHead::finalize()
+void CStorageHead::finalize(int start_bin, int end_bin)
 {
-	for (int i=0; i<number_bins; i++)
-		bin[i].finalize(); 
+	if (start_bin >=0 && start_bin < number_bins && end_bin >= 0 && end_bin < number_bins && start_bin <= end_bin)
+	{
+		for (int i=start_bin; i<=end_bin; i++)
+			bin[i].finalize(); 
+	}
+	else
+	{
+		for (int i=0; i<number_bins; i++)
+			bin[i].finalize(); 
+	}
 }
 
 
@@ -121,11 +129,35 @@ void CStorageHead::consolidate(int start_bin, int end_bin)
 	}
 }
 
-void CStorageHead::restore()
+void CStorageHead::restore(int start_bin, int end_bin)
 {
-	for (int i=0; i<number_bins; i++)
-		bin[i].restore(); 
+	if (start_bin >=0 && start_bin < number_bins && end_bin >= 0 && end_bin < number_bins && start_bin <= end_bin)
+        {
+                for (int i=start_bin; i<=end_bin; i++)
+                        bin[i].restore();
+        }
+	else 
+	{
+		for (int i=0; i<number_bins; i++)
+			bin[i].restore(); 
+	}
 }
+
+void CStorageHead::RestoreForFetch(int start_bin, int end_bin)
+{
+	if (start_bin >=0 && start_bin < number_bins && end_bin >= 0 && end_bin < number_bins && start_bin <= end_bin)
+        {
+                for (int i=start_bin; i<=end_bin; i++)
+                        bin[i].RestoreForFetch();
+        }
+	else 
+	{
+		for (int i=0; i<number_bins; i++)
+			bin[i].RestoreForFetch(); 
+	}
+
+}
+
 
 void CParameterPackage::TraceStorageHead(const CStorageHead &storage)
 {
@@ -138,15 +170,27 @@ void CParameterPackage::TraceStorageHead(const CStorageHead &storage)
 	}
 }
 
-bool CParameterPackage::LoadCurrentStateFromStorage(CStorageHead &storage, const gsl_rng *r)
+bool CParameterPackage::LoadCurrentStateFromStorage(CStorageHead &storage, const gsl_rng *r, int level)
 {
 	x_current.resize(number_energy_level);
         for (int i=0; i<number_energy_level; i++)
                 x_current[i].SetDataDimension(data_dimension);
 	
+	int startLevel, endLevel; 
+	if (level >=0 && level<number_energy_level)
+	{
+		startLevel = level; 
+		endLevel = level +1; 
+	}	
+	else 
+	{
+		startLevel = 0; 
+		endLevel = number_energy_level; 
+	}
+
 	int bin_id, try_id; 
 	bool if_success; 
-	for (int i=0; i<number_energy_level; i++)
+	for (int i=startLevel; i<endLevel; i++)
 	{
 		if_success = false; 
 		try_id = i; 
