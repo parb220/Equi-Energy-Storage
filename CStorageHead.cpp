@@ -188,27 +188,26 @@ bool CParameterPackage::LoadCurrentStateFromStorage(CStorageHead &storage, const
 		endLevel = number_energy_level; 
 	}
 
-	int bin_id, try_id; 
+	int bin_id, startBin, endBin;  
 	bool if_success; 
 	for (int i=startLevel; i<endLevel; i++)
 	{
 		if_success = false; 
-		try_id = i; 
-		bin_id = i*number_energy_level + try_id; 
-		while (try_id >=0 && (storage.empty(bin_id) || !(if_success = storage.DrawSample(bin_id, r, x_current[i])) ) )
+		bin_id = startBin = (i+1)*number_energy_level; 
+		endBin = number_bins-1; 
+		while (!if_success && bin_id <= endBin)
 		{
-			try_id --; 
-			bin_id = i*number_energy_level + try_id;
+			if (!storage.empty(bin_id))
+				if_success = storage.DrawSample(bin_id, r, x_current[i]); 
+			bin_id ++; 
 		}
-		if (!if_success)
+		bin_id = startBin = (i+1)*number_energy_level-1; 
+		endBin = 0; 
+		while (!if_success && bin_id >= endBin)
 		{
-			try_id = i+1; 
-			bin_id = i*number_energy_level + try_id;
-			while (try_id < number_energy_level && (storage.empty(bin_id) || !(if_success = storage.DrawSample(bin_id, r, x_current[i])) ) )
-			{
-				try_id ++; 
-				bin_id = i*number_energy_level + try_id; 
-			}
+			if(! storage.empty(bin_id) )
+				if_success = storage.DrawSample(bin_id, r, x_current[i]); 
+			bin_id --; 
 		}
 		if (!if_success)
 			return false; 
