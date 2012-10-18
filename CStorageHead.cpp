@@ -1,6 +1,8 @@
 #include <sstream>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <gsl/gsl_randist.h>
+#include <gsl/gsl_permutation.h>
 #include "CStorageHead.h"
 
 using namespace std;
@@ -185,27 +187,41 @@ bool CParameterPackage::LoadCurrentStateFromStorage(CStorageHead &storage, const
 
 	int bin_id, startBin, endBin;  
 	bool if_success; 
+	gsl_permutation *p; 
+
 	for (int i=startLevel; i<endLevel; i++)
 	{
 		if_success = false; 
-		bin_id = startBin = (i+1)*number_energy_level; 
+		startBin = (i+1)*number_energy_level; 
 		endBin = number_bins-1; 
-		while (!if_success && bin_id <= endBin)
-		{
-			// if (!storage.empty(bin_id))
-				if_success = storage.DrawSample(bin_id, r, x_current[i]); 
-			bin_id ++; 
-		}
 		
-		bin_id = startBin = (i+1)*number_energy_level-1; 
-		endBin = 0; 
-		while(!if_success && bin_id >= 0)
+		p = gsl_permutation_alloc(endBin-startBin+1); 
+		gsl_permutation_init(p); 
+		gsl_ran_shuffle(r, p->data, endBin-startBin+1, sizeof(int)); 
+		int index = 0; 
+		while (!if_success && index < (endBin-startBin+1))
 		{
-			// if (!storage.empty(bin_id))
+			bin_id = startBin + gsl_permutation_get(p,index); 
+			if_success = storage.DrawSample(bin_id, r, x_current[i]); 
+			index ++; 
+		}
+		gsl_permutation_free(p); 
+		if (!if_success)
+		{
+			startBin = (i+1)*number_energy_level-1; 
+			endBin = 0; 
+			p = gsl_permutation_alloc(startBin-endBin+1); 
+			gsl_permutation_init(p); 
+			gsl_ran_shuffle(r, p->data, startBin-endBin+1, sizeof(int)); 
+			int index = 0; 
+			while(!if_success && index < (startBin-endBin+1))
+			{
+				bin_id = startBin - gsl_permutation_get(p, index);  
 				if_success = storage.DrawSample(bin_id, r, x_current[i]); 
-			bin_id --; 
+				index ++; 
+			}
+			gsl_permutation_free(p); 
 		}		
-
 		if (!if_success)
 			return false; 
 	}

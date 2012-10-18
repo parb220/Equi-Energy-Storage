@@ -49,7 +49,7 @@ int CPutGetBin::DepositSample(const CSampleIDWeight &sample)
 	else
 		dataPut[index] = sample; 
 	nPutUsed ++; 
-	if (nPutUsed == capacityPut)
+	if (nPutUsed >= capacityPut)
 	{
 		Dump(); 
 		nDumpFile ++; 
@@ -67,7 +67,7 @@ int CPutGetBin::DepositSample(const double *x, int x_d, int x_index, double x_we
 	else 
 		dataPut[index] = CSampleIDWeight(x, x_d, x_index, x_weight); 
 	nPutUsed ++; 
-	if (nPutUsed == capacityPut)
+	if (nPutUsed >= capacityPut)
 	{
 		Dump(); 
 		nDumpFile++; 
@@ -100,18 +100,31 @@ bool CPutGetBin::DrawSample(const gsl_rng *r, CSampleIDWeight &sample)
 	int nFetchFile = (int)(filename_fetch.size()); 
 	if (nFetchFile*capacityPut+nPutUsed<= 0)
 		return false; 
-	else if (nPutUsed > 0) 
+	else if (nFetchFile <= 0 && nPutUsed > 0) 
 	/* when data have not been dumped to files
  	will directly get a data from dataPut
  	*/
 	{
+		/*
+ 		nGetUsed is initialized as capacityGet and is reset to 0 after each Fetch. 
+		This part is executated when there is no files for fetch (and therefore nGetUsed 
+		cannot be 0). So we let nGetUsed continue to increase until the net increment,
+		nGetUsed - capacityGet exceeds the number of samples in nPutUsed.
+ 		*/
+		if (nGetUsed >= capacityGet + nPutUsed)
+			return false; 
 		index = gsl_rng_uniform_int(r, nPutUsed); 
-		sample = dataPut[index]; 
+		sample = dataPut[index];
+		nGetUsed ++;  
 		return true; 
 	}
 	else 
 	{
-		if (nGetUsed == capacityGet)
+		/*
+ 		If the previous block has never been executed, nGetUsed = capacityGet; 
+		otherwise, nGetUsed > capacityGet
+ 		*/
+		if (nGetUsed >= capacityGet)
 		{
 			Fetch(r, filename_fetch);
 			nGetUsed = 0; 
@@ -130,15 +143,19 @@ bool CPutGetBin::DrawSample(double *x, int dim, int &id, double &weight, const g
 	int nFetchFile = (int)(filename_fetch.size()); 
 	if (nFetchFile*capacityPut+nPutUsed<= 0)
 		return false; 
-	else if (nPutUsed<= 0)
+	else if (nFetchFile <= 0 && nPutUsed > 0)
 	{
+		if (nGetUsed >= capacityGet + nPutUsed)
+			return false; 
+	
 		index = gsl_rng_uniform_int(r, nPutUsed);
 		dataPut[index].CopyData(x,dim,id, weight); 
+		nGetUsed ++; 
 		return true; 
 	}
 	else 
 	{
-		if (nGetUsed == capacityGet)
+		if (nGetUsed >= capacityGet)
 		{
 			Fetch(r, filename_fetch);
 			nGetUsed = 0; 
@@ -259,7 +276,7 @@ void CPutGetBin::restore()
  
 		if (nPutUsed >0 && nPutUsed < capacityPut)
 			nDumpFile --; 
-		else if (nPutUsed == capacityPut)
+		else if (nPutUsed >= capacityPut)
 			nPutUsed =0; 
 	}
 }
@@ -286,7 +303,7 @@ void CPutGetBin::RestoreForFetch()
 vector < CSampleIDWeight> CPutGetBin::ReadSampleFromFile(string file_name) const
 {
 	int nRecord = NumberRecord(file_name); 
-	if (nRecord == 0)
+	if (nRecord <= 0)
 		return vector<CSampleIDWeight> (0);
 	fstream iFile;
         iFile.open(file_name.c_str(), ios::in|ios::binary);
@@ -363,7 +380,7 @@ vector <string> CPutGetBin::GetFileNameForFetch() const
 	if (glob_result.gl_pathc > 0)
 	{
 		for (int i=0; i<(int)(glob_result.gl_pathc); i++)
-			if (NumberRecord(string(glob_result.gl_pathv[i])) == capacityPut)
+			if (NumberRecord(string(glob_result.gl_pathv[i])) >= capacityPut)
 				filename_fetch.push_back(string(glob_result.gl_pathv[i])); 
 	}
 	else 

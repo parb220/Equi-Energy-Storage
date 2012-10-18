@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <cstring>
+#include <gsl/gsl_randist.h>
+#include <gsl/gsl_permutation.h>
 #include "CModel.h"
 #include "CBoundedModel.h"
 #include "CEES_Node.h"
@@ -137,8 +139,35 @@ void CEES_Node::Initialize(const CSampleIDWeight &x)
 
 bool CEES_Node::Initialize(CStorageHead &storage, const gsl_rng *r)
 {
-	// Initialize using samples from the next level; 
+	// random permutation of 0, 1, ..., K-1
+	gsl_permutation *p = gsl_permutation_alloc(K); 
+	gsl_permutation_init(p); 
+	gsl_ran_shuffle(r, p->data, K, sizeof(int)); 
+	
+	int binOffset; 
 	if (next_level == NULL)
+		binOffset = this->BinID(0); 
+	else 
+		binOffset = next_level->BinID(0); 
+	int index=0, bin_id;  
+	while (index <K )
+	{
+		bin_id = binOffset+gsl_permutation_get(p, index); 
+		if (storage.DrawSample(bin_id, r, x_current))
+		{
+			x_current.log_prob = -(x_current.GetWeight() > GetEnergy() ? x_current.GetWeight() : GetEnergy())/GetTemperature();
+			ring_index_current = GetRingIndex(x_current.GetWeight());
+                        UpdateMinMaxEnergy(x_current.GetWeight());
+			gsl_permutation_free(p); 
+			return true; 
+		}
+		index ++; 
+	}
+
+	gsl_permutation_free(p); 	
+	return false; 
+	// Initialize using samples from the next level; 
+	/*if (next_level == NULL)
 	{
 		for (int try_id = id; try_id >=0; try_id --)
 		{
@@ -197,7 +226,7 @@ bool CEES_Node::Initialize(CStorageHead &storage, const gsl_rng *r)
                 	}
 		}
 	}
-	return false; 
+	return false; */
 } 
 
 bool CEES_Node::SetEnergyLevels(double *e, int n)
