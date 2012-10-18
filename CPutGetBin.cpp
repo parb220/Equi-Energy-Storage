@@ -21,7 +21,6 @@ CPutGetBin::CPutGetBin(int _id, int _nDumpFile, int _capacityPut, int _capacityG
  	// dataGet.resize(capacityGet); 
 
 	filename_prefix = _grandPrefix; 
-	fetch_status = false; 
 } 
 
 CPutGetBin::~CPutGetBin()
@@ -335,19 +334,6 @@ string CPutGetBin::GetFileNameForDump() const
 	return file_name; 
 }
 
-bool CPutGetBin::if_fetchable() 
-{
-	if (!fetch_status)
-	{
-		int nFetchFile = GetNumberFileForFetch(); 
-		if (nFetchFile*capacityPut+nPutUsed > 0)
-			fetch_status = true; 
-		else 
-			fetch_status = false; 
-	} 
-	return fetch_status; 
-}
-
 int CPutGetBin::GetNumberFileForDump() const
 {
 	stringstream convert; 
@@ -412,6 +398,12 @@ int CPutGetBin::GetNumberFileForFetch() const
 {
 	vector <string> file_fetch = GetFileNameForFetch();
 	return (int)(file_fetch.size()); 
+}
+
+int CPutGetBin::GetNumberFileForConsolidate() const
+{
+	vector <string> file_consolidate = GetFileNameForConsolidate(); 
+	return (int)(file_consolidate.size()); 
 }
 
 int CPutGetBin::NumberRecord(string file_name) const

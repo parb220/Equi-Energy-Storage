@@ -139,37 +139,63 @@ bool CEES_Node::Initialize(CStorageHead &storage, const gsl_rng *r)
 {
 	// Initialize using samples from the next level; 
 	if (next_level == NULL)
-                return false;
-        int bin_id_next_level; 
-	// Try next levels' bins with the same or lower energies
-	for (int try_id = id; try_id >= 0; try_id --)
 	{
-		bin_id_next_level = next_level->BinID(try_id); 
-        	if (!storage.empty(bin_id_next_level) && storage.DrawSample(bin_id_next_level, r, x_current))
+		for (int try_id = id; try_id >=0; try_id --)
 		{
+			int bin_id = this->BinID(try_id); 
+			if (storage.DrawSample(bin_id, r, x_current))
+			{
+				x_current.log_prob = -(x_current.GetWeight() > GetEnergy() ? x_current.GetWeight() : GetEnergy())/GetTemperature();
+                        	ring_index_current = GetRingIndex(x_current.GetWeight());
+                        	UpdateMinMaxEnergy(x_current.GetWeight());
+                        	return true;
+			}
+		}
+		for (int try_id = id+1; try_id <K; try_id ++)
+		{
+			int bin_id = this->BinID(try_id);
+                        if (storage.DrawSample(bin_id, r, x_current))
+                        {
+                                x_current.log_prob = -(x_current.GetWeight() > GetEnergy() ? x_current.GetWeight() : GetEnergy())/GetTemperature();
+                                ring_index_current = GetRingIndex(x_current.GetWeight());
+                                UpdateMinMaxEnergy(x_current.GetWeight());
+                                return true;
+                        }
+
+		}
+	}
+	else 
+	{       
+		// Try next levels' bins with the same or lower energies
+		for (int try_id = id; try_id >= 0; try_id --)
+		{
+			int bin_id_next_level = next_level->BinID(try_id); 
+        		if (storage.DrawSample(bin_id_next_level, r, x_current))
+			{
 			// x_current.weight will remain the same 
 			// x_current.log_prob needs to be updated according to 
 			// current level's H and T
-			x_current.log_prob = -(x_current.GetWeight() > GetEnergy() ? x_current.GetWeight() : GetEnergy())/GetTemperature(); 
-			ring_index_current = GetRingIndex(x_current.GetWeight());  
-			UpdateMinMaxEnergy(x_current.GetWeight()); 
-			return true;
+				x_current.log_prob = -(x_current.GetWeight() > GetEnergy() ? x_current.GetWeight() : GetEnergy())/GetTemperature(); 
+				ring_index_current = GetRingIndex(x_current.GetWeight());  
+				UpdateMinMaxEnergy(x_current.GetWeight()); 
+				return true;
+			}
 		}
-	}
-	// If not successful, then try next level's bins with higher energies
-	for (int try_id = id+1; try_id <K; try_id ++)
-	{
-		bin_id_next_level = next_level->BinID(try_id);
-                if (!storage.empty(bin_id_next_level) && storage.DrawSample(bin_id_next_level, r, x_current))
-                {
+		// If not successful, then try next level's bins with higher energies
+		for (int try_id = id+1; try_id <K; try_id ++)
+		{
+			int bin_id_next_level = next_level->BinID(try_id);
+                	if (storage.DrawSample(bin_id_next_level, r, x_current))
+                	{
 			// x_current.weight will remain the same 
 			// x_current.log_prob needs to be updated according to
 			// current level's H and  T
-			x_current.log_prob = -(x_current.GetWeight() > GetEnergy() ? x_current.GetWeight() : GetEnergy())/GetTemperature(); 
-                        ring_index_current = GetRingIndex(x_current.GetWeight());
-			UpdateMinMaxEnergy(x_current.GetWeight()); 
-                        return true;
-                }
+				x_current.log_prob = -(x_current.GetWeight() > GetEnergy() ? x_current.GetWeight() : GetEnergy())/GetTemperature(); 
+                        	ring_index_current = GetRingIndex(x_current.GetWeight());
+				UpdateMinMaxEnergy(x_current.GetWeight()); 
+                        	return true;
+                	}
+		}
 	}
 	return false; 
 } 
@@ -244,7 +270,7 @@ bool CEES_Node::EE_draw(const gsl_rng *r, CStorageHead &storage)
 	if (next_level == NULL)
 		return false; 
 	int bin_id_next_level = next_level->BinID(ring_index_current); 
-	if (storage.empty(bin_id_next_level) || !storage.DrawSample(bin_id_next_level, r, x_new))
+	if (!storage.DrawSample(bin_id_next_level, r, x_new))
 		return false; 
 	
 	// if x_new is adopted

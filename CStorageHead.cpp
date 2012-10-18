@@ -47,11 +47,6 @@ bool CStorageHead::DrawSample(int _bin_id, double *x, int x_d, int &x_ID, double
 	return bin[_bin_id].DrawSample(x, x_d, x_ID, x_weight, r); 
 }
 
-bool CStorageHead::empty(int _bin_id)
-{
-	return !(bin[_bin_id].if_fetchable()); 
-}
-
 bool CStorageHead::makedir()
 {
 	stringstream str; 
@@ -197,18 +192,20 @@ bool CParameterPackage::LoadCurrentStateFromStorage(CStorageHead &storage, const
 		endBin = number_bins-1; 
 		while (!if_success && bin_id <= endBin)
 		{
-			if (!storage.empty(bin_id))
+			// if (!storage.empty(bin_id))
 				if_success = storage.DrawSample(bin_id, r, x_current[i]); 
 			bin_id ++; 
 		}
+		
 		bin_id = startBin = (i+1)*number_energy_level-1; 
 		endBin = 0; 
-		while (!if_success && bin_id >= endBin)
+		while(!if_success && bin_id >= 0)
 		{
-			if(! storage.empty(bin_id) )
+			// if (!storage.empty(bin_id))
 				if_success = storage.DrawSample(bin_id, r, x_current[i]); 
 			bin_id --; 
-		}
+		}		
+
 		if (!if_success)
 			return false; 
 	}
