@@ -442,4 +442,23 @@ int CPutGetBin::NumberRecord(string file_name) const
 	return number_record; 
 }
 
+bool CPutGetBin::empty() const
+{
+        stringstream convert;
+        convert.str(string());
+        convert << id << ".*.*"; // << ".*" // all cluster node; 
+
+        string filename_pattern = filename_prefix + convert.str();
+
+        glob_t glob_result;
+        glob(filename_pattern.c_str(), GLOB_TILDE, NULL, &glob_result);
+	bool return_result; 
+        if (glob_result.gl_pathc > 0)
+		return_result = false; 
+	else 
+		return_result = true; 
+
+        globfree(&glob_result);
+	return return_result; 
+}
 

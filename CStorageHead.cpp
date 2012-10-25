@@ -140,6 +140,24 @@ void CStorageHead::restore(int start_bin, int end_bin)
 	}
 }
 
+bool CStorageHead::empty(int start_bin, int end_bin) const
+{
+	if (start_bin >=0 && start_bin < number_bins && end_bin >= 0 && end_bin < number_bins && start_bin <= end_bin)
+	{
+		for (int i=end_bin; i>=start_bin; i--)
+			if (!bin[i].empty())
+				return false; 
+		return true; 
+	}
+	else 
+	{
+		for (int i=number_bins-1; i>=0; i--)
+			if (!bin[i].empty())
+				return false; 
+		return true; 
+	}
+}
+
 void CStorageHead::RestoreForFetch(int start_bin, int end_bin)
 {
 	if (start_bin >=0 && start_bin < number_bins && end_bin >= 0 && end_bin < number_bins && start_bin <= end_bin)

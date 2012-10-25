@@ -5,41 +5,27 @@
 
 using namespace std; 
 
-CSampleIDWeight::CSampleIDWeight()
-{
-	dim = 0; 
-	data = NULL; 
-	id = 0; 
-	weight = 0.0; 
-}
+CSampleIDWeight::CSampleIDWeight() : dim(0), data(NULL), id(0), weight(0.0), log_prob(0.0)
+{}
 
 CSampleIDWeight::CSampleIDWeight(const double *x, int _dim, int _id, double _weight)
+	: dim(_dim), data(NULL), id(_id), weight(_weight), log_prob(0.0)
 {
-	dim = _dim; 
 	if (dim > 0)
 	{
 		data = new double[dim]; 
 		memcpy(data, x, sizeof(double)*dim); 
 	}
-	else 
-		data = NULL; 
-	id = _id; 
-	weight = _weight; 
 }
 
 CSampleIDWeight::CSampleIDWeight(const CSampleIDWeight &right)
+	: dim(right.dim), data(NULL), id(right.id), weight(right.weight), log_prob(right.log_prob)
 {
-	dim = right.dim; 
 	if (dim > 0)
 	{
 		data = new double[dim]; 
 		memcpy(data, right.data, sizeof(double)*dim);
 	}
-	else 
-		data = NULL; 
-	id = right.id; 
-	weight = right.weight;
-	log_prob = right.log_prob; 
 }
 
 CSampleIDWeight::~CSampleIDWeight()
