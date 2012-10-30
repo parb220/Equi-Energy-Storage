@@ -1,6 +1,7 @@
 #include <sstream>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_permutation.h>
 #include "CStorageHead.h"
@@ -55,15 +56,17 @@ bool CStorageHead::makedir()
 	str.str(string()); 
 	str << run_id; 
 	string dir = filename_base + str.str(); 
+	errno = 0; // clear error number
 	int status = mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-	if (status !=0 && status != EEXIST)
+	if (status !=0 && errno != EEXIST)
 		return false;
  
 	str.str(string()); 
 	str << run_id << "/" << run_id << ".binary" ; 
-	dir = filename_base + str.str(); 
+	dir = filename_base + str.str();
+	errno = 0; 
 	status = mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH); 
-	if (status == 0 || status == EEXIST)
+	if (status == 0 || errno == EEXIST)
 		return true; 
 	else 
 		return false; 
