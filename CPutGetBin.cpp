@@ -96,74 +96,85 @@ bool CPutGetBin::Dump(string _filename)
 bool CPutGetBin::DrawSample(const gsl_rng *r, CSampleIDWeight &sample)
 {
 	int index; 
-	vector <string> filename_fetch = GetFileNameForFetch(); 
-	int nFetchFile = (int)(filename_fetch.size()); 
-	if (nFetchFile*capacityPut+nPutUsed<= 0)
-		return false; 
-	else if (nFetchFile <= 0 && nPutUsed > 0) 
-	/* when data have not been dumped to files
- 	will directly get a data from dataPut
- 	*/
+	if (nGetUsed < capacityGet)	// get data
 	{
-		/*
- 		nGetUsed is initialized as capacityGet and is reset to 0 after each Fetch. 
-		This part is executated when there is no files for fetch (and therefore nGetUsed 
-		cannot be 0). So we let nGetUsed continue to increase until the net increment,
-		nGetUsed - capacityGet exceeds the number of samples in nPutUsed.
- 		*/
-		if (nGetUsed >= capacityGet + nPutUsed)
-			return false; 
-		index = gsl_rng_uniform_int(r, nPutUsed); 
-		sample = dataPut[index];
-		nGetUsed ++;  
+		index = gsl_rng_uniform_int(r, capacityGet);
+                nGetUsed ++;
+                sample = dataGet[index];
 		return true; 
 	}
-	else 
+	else	// replenish and get data
 	{
-		/*
- 		If the previous block has never been executed, nGetUsed = capacityGet; 
-		otherwise, nGetUsed > capacityGet
+		vector <string> filename_fetch = GetFileNameForFetch(); 
+		int nFetchFile = (int)(filename_fetch.size()); 
+		if (nFetchFile*capacityPut+nPutUsed<= 0)
+			return false; 
+		else if (nFetchFile <= 0 && nPutUsed > 0) 
+		/* when data have not been dumped to files,
+ 		will directly get a data from dataPut
  		*/
-		if (nGetUsed >= capacityGet)
+		{
+			/*
+ 			nGetUsed is initialized as capacityGet and is reset to 0 after each Fetch. 
+			This part is executated when there is no files for fetch (and therefore 
+			nGetUsed cannot be 0). So we let nGetUsed continue to increase until the 
+			net increment, nGetUsed - capacityGet exceeds the number of samples in 
+			nPutUsed.
+ 			*/
+			if (nGetUsed >= capacityGet + nPutUsed)
+				return false; 
+			index = gsl_rng_uniform_int(r, nPutUsed); 
+			sample = dataPut[index];
+			nGetUsed ++;  
+			return true; 
+		}
+		else
 		{
 			Fetch(r, filename_fetch);
-			nGetUsed = 0; 
+                        nGetUsed = 0;
+			index = gsl_rng_uniform_int(r, capacityGet);
+                	nGetUsed ++;
+                	sample = dataGet[index];
+                	return true;
 		}
-		index = gsl_rng_uniform_int(r, capacityGet); 
-		nGetUsed ++; 
-		sample = dataGet[index]; 
-		return true; 
 	}
 }
 
 bool CPutGetBin::DrawSample(double *x, int dim, int &id, double &weight, const gsl_rng *r)
 {
 	int index;
-	vector <string> filename_fetch = GetFileNameForFetch(); 
-	int nFetchFile = (int)(filename_fetch.size()); 
-	if (nFetchFile*capacityPut+nPutUsed<= 0)
-		return false; 
-	else if (nFetchFile <= 0 && nPutUsed > 0)
+	if (nGetUsed  < capacityGet) // directly get data
 	{
-		if (nGetUsed >= capacityGet + nPutUsed)
-			return false; 
-	
-		index = gsl_rng_uniform_int(r, nPutUsed);
-		dataPut[index].CopyData(x,dim,id, weight); 
-		nGetUsed ++; 
-		return true; 
+		index = gsl_rng_uniform_int(r, capacityGet);
+                nGetUsed ++;
+                dataGet[index].CopyData(x, dim, id, weight);
+                return true;
 	}
-	else 
+	else // replenish and then get data
 	{
-		if (nGetUsed >= capacityGet)
+		vector <string> filename_fetch = GetFileNameForFetch(); 
+		int nFetchFile = (int)(filename_fetch.size()); 
+		if (nFetchFile*capacityPut+nPutUsed<= 0)
+			return false; 
+		else if (nFetchFile <= 0 && nPutUsed > 0)
+		{
+			if (nGetUsed >= capacityGet + nPutUsed)
+				return false; 
+	
+			index = gsl_rng_uniform_int(r, nPutUsed);
+			dataPut[index].CopyData(x,dim,id, weight); 
+			nGetUsed ++; 
+			return true; 
+		}
+		else 
 		{
 			Fetch(r, filename_fetch);
 			nGetUsed = 0; 
-		} 
-		index = gsl_rng_uniform_int(r, capacityGet);  
-		nGetUsed ++; 
-		dataGet[index].CopyData(x, dim, id, weight); 
-		return true; 
+			index = gsl_rng_uniform_int(r, capacityGet);  
+			nGetUsed ++; 
+			dataGet[index].CopyData(x, dim, id, weight); 
+			return true; 
+		}
 	}
 }
 

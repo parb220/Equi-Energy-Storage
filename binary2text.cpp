@@ -8,40 +8,36 @@
 
 using namespace std; 
 
-bool GetNumberFilesPerBin(string, vector <int> &); 
-
 int main(int argc, char* argv[])
 {
-	if (argc < 5)
+	if (argc < 3)
 	{
-		cout << argv[0] << " data_dimension input_filename(binary) output_filename(text) max_record_number"; 
+		cout << argv[0] << " input_filename(binary) output_filename(text)"; 
 		exit(-1); 
-	}
-	int max_record_number = atoi(argv[4]); 
-	vector <CSampleIDWeight> sample(max_record_number);
+	} 
+	CSampleIDWeight one_sample; 
+	vector <CSampleIDWeight> sample;
 	fstream iFile; 
-	iFile.open(argv[2], ios::in|ios::binary); 
+	iFile.open(argv[1], ios::in|ios::binary); 
 	if (!iFile)
 	{
-		cout << "Error in loading " << argv[2] << endl; 
+		cout << "Error in loading " << argv[1] << endl; 
 		exit(-1); 
 	}
-	int counter = 0; 
-	while(!read(iFile, &(sample[counter])).eof())
-		counter ++ ;
-	
+	while(!read(iFile, &(one_sample)).eof())
+		sample.push_back(one_sample); 
 
 	iFile.close(); 
 
 	ofstream oFile; 
-	oFile.open(argv[3]); 
+	oFile.open(argv[2]); 
 	if (!oFile)
 	{
-		cout << "Error in writing " << argv[3] << endl; 
+		cout << "Error in writing " << argv[2] << endl; 
 		exit(-1);
 	}
 
-	for (int i=0; i<counter; i++)
+	for (int i=0; i<(int)(sample.size()); i++)
 		oFile << sample[i]; 
 
 	oFile.close(); 
