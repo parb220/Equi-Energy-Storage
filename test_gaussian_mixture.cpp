@@ -75,7 +75,7 @@ int main(int argc, char **argv)
 	int _simulation_length =SIMULATION_LENGTH; 
 	double _c_factor = C; 
 	double _mh_target_acc = MH_TARGET_ACC; 
-	double _energy_level_tuning_max_time =  ENERGY_LEVEL_TUNING_MAX_TIME; 
+	int _energy_level_tuning_max_time =  ENERGY_LEVEL_TUNING_MAX_TIME; 
 
 	// parse command line
 	int opt; 
