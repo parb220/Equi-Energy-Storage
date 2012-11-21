@@ -5,8 +5,8 @@ BINARY_TEXT_OBJS = binary2text.o CSampleIDWeight.o
 CPP = gcc
 CPPFLAGS := $(CPPFLAGS) -g -Wall  
 #LIBS := $(LIBS) -static-libstdc++ -static -lgsl -lgslcblas -lm#-lstdc++ -lm
-LIBS := $(LIBS) /usr/lib/gcc/x86_64-redhat-linux/4.6.3/libstdc++.a -static -lgsl -lgslcblas -lm
-#LIBS := $(LIBS) -lstdc++ -lgsl -lgslcblas -lm
+#LIBS := $(LIBS) /usr/lib/gcc/x86_64-redhat-linux/4.6.3/libstdc++.a -static -lgsl -lgslcblas -lm
+LIBS := $(LIBS) -lstdc++ -lgsl -lgslcblas -lm
 #LIBS_DIR := $(LIBS_DIR) -L/usr/lib64
 
 EQUAL_ENERGY_HOME = /home/f1hxw01/equal_energy_hw
