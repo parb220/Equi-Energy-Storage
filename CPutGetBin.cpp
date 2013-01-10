@@ -422,6 +422,22 @@ vector <string> CPutGetBin::GetFileNameForConsolidate() const
         globfree(&glob_result);
         return filename_consolidate; 
 }
+
+int CPutGetBin::GetTotalNumberRecord() const
+{
+	stringstream convert;
+        convert.str(string());
+        convert << id << ".*.*"; 
+	string filename_pattern = filename_prefix + convert.str();
+
+        glob_t glob_result;
+        glob(filename_pattern.c_str(), GLOB_TILDE, NULL, &glob_result);
+	int nRecord=0; 
+        for (int i=0; i<(int)(glob_result.gl_pathc); i++)
+        	nRecord += NumberRecord(string(glob_result.gl_pathv[i]));
+	return nRecord; 
+}
+
 int CPutGetBin::GetNumberFileForFetch() const
 {
 	vector <string> file_fetch = GetFileNameForFetch();

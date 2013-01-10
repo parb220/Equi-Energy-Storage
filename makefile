@@ -3,8 +3,8 @@ CEES_OBJS = test_gaussian_mixture.o CEES_Node.o CSampleIDWeight.o CPutGetBin.o C
 BINARY_TEXT_OBJS = binary2text.o CSampleIDWeight.o
 
 CPP = gcc
-#CPPFLAGS := $(CPPFLAGS) -g -Wall  
-CPPFLAGS := $(CPPFLAGS) -static -O3
+CPPFLAGS := $(CPPFLAGS) -g -Wall  
+#CPPFLAGS := $(CPPFLAGS) -static -O3
 #LIBS := $(LIBS) -static-libstdc++ -static -lgsl -lgslcblas -lm#-lstdc++ -lm
 #LIBS := $(LIBS) /usr/lib/gcc/x86_64-redhat-linux/4.6.3/libstdc++.a -static -lgsl -lgslcblas -lm
 LIBS := $(LIBS) -lstdc++ -lgsl -lgslcblas -lm
