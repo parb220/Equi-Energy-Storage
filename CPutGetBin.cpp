@@ -93,6 +93,69 @@ bool CPutGetBin::Dump(string _filename)
 	return true; 
 }
 
+bool CPutGetBin::DrawLeastWeightSample(CSampleIDWeight &sample)  const
+{
+	CSampleIDWeight temp_sample; 
+	temp_sample.SetDataDimension(sample.GetDataDimension()); 
+
+	vector <string> file = GetFileNameForConsolidate();
+	vector <string> fetch_file = GetFileNameForFetch(); 
+	file.insert(file.end(), fetch_file.begin(), fetch_file.end()); 
+	 
+	for (int i=0; i<(int)(file.size()); i++)
+	{
+		if (!LoadLeastWeightSample(file[i], temp_sample)) 
+		{
+			cerr << "Error in opening " << file[i] << " for reading data.\n"; 
+			return false; 
+		}
+		if (i==0 || temp_sample.GetWeight() < sample.GetWeight())
+			sample = temp_sample; 
+	}
+	return true; 	
+}
+
+bool CPutGetBin::DrawMostWeightSample(CSampleIDWeight &sample)  const
+{
+        CSampleIDWeight temp_sample;
+        temp_sample.SetDataDimension(sample.GetDataDimension());
+
+        vector <string> file = GetFileNameForConsolidate();
+        vector <string> fetch_file = GetFileNameForFetch();
+        file.insert(file.end(), fetch_file.begin(), fetch_file.end());
+
+        for (int i=0; i<(int)(file.size()); i++)
+        {
+                if (!LoadMostWeightSample(file[i], temp_sample))
+                {
+                        cerr << "Error in opening " << file[i] << " for reading data.\n";
+                        return false;
+                }
+                if (i==0 || temp_sample.GetWeight() > sample.GetWeight())
+                        sample = temp_sample;
+        }
+        return true;
+}
+
+
+bool CPutGetBin::DrawLeastWeightSample(double *x, int x_d, int &x_id, double &x_weight) const
+{
+	CSampleIDWeight sample; 
+	if (!DrawLeastWeightSample(sample) )
+		return false; 
+	sample.CopyData(x, x_d, x_id, x_weight); 
+	return true; 
+}
+
+bool CPutGetBin::DrawMostWeightSample(double *x, int x_d, int &x_id, double &x_weight) const
+{
+	CSampleIDWeight sample; 
+ 	if (!DrawMostWeightSample(sample) )
+		return false; 
+	sample.CopyData(x, x_d, x_id, x_weight); 
+	return true; 
+}
+
 bool CPutGetBin::DrawSample(const gsl_rng *r, CSampleIDWeight &sample)
 {
 	int index; 
@@ -142,40 +205,12 @@ bool CPutGetBin::DrawSample(const gsl_rng *r, CSampleIDWeight &sample)
 
 bool CPutGetBin::DrawSample(double *x, int dim, int &id, double &weight, const gsl_rng *r)
 {
-	int index;
-	if (nGetUsed  < capacityGet) // directly get data
-	{
-		index = gsl_rng_uniform_int(r, capacityGet);
-                nGetUsed ++;
-                dataGet[index].CopyData(x, dim, id, weight);
-                return true;
-	}
-	else // replenish and then get data
-	{
-		vector <string> filename_fetch = GetFileNameForFetch(); 
-		int nFetchFile = (int)(filename_fetch.size()); 
-		if (nFetchFile*capacityPut+nPutUsed<= 0)
-			return false; 
-		else if (nFetchFile <= 0 && nPutUsed > 0)
-		{
-			if (nGetUsed >= capacityGet + nPutUsed)
-				return false; 
-	
-			index = gsl_rng_uniform_int(r, nPutUsed);
-			dataPut[index].CopyData(x,dim,id, weight); 
-			nGetUsed ++; 
-			return true; 
-		}
-		else 
-		{
-			Fetch(r, filename_fetch);
-			nGetUsed = 0; 
-			index = gsl_rng_uniform_int(r, capacityGet);  
-			nGetUsed ++; 
-			dataGet[index].CopyData(x, dim, id, weight); 
-			return true; 
-		}
-	}
+	CSampleIDWeight sample; 
+	sample.SetDataDimension(dim); 
+	if (!DrawSample(r, sample) )
+		return false; 
+	sample.CopyData(x, dim, id, weight);  
+	return true; 
 }
 
 bool CPutGetBin::Fetch(const gsl_rng *r, const vector<string> & filename_fetch)
@@ -233,6 +268,34 @@ bool CPutGetBin::ReadFromOneFile(string file_name, int &counter, const vector <i
                 counter ++;
         }
       	iFile.close();
+	return true; 
+}
+
+bool CPutGetBin::LoadLeastWeightSample(string file_name, CSampleIDWeight &best) const
+{
+	vector <CSampleIDWeight > samples = ReadSampleFromFile(file_name); 
+	if ((int)(samples.size()) <= 0)
+		return false; 
+	best = samples[0]; 
+	for (int i=1; i<(int)(samples.size()); i++)
+	{
+		if (samples[i].GetWeight() < best.GetWeight())
+			best = samples[i]; 
+	}
+	return true; 
+}
+
+bool CPutGetBin::LoadMostWeightSample(string file_name, CSampleIDWeight &best) const
+{
+	vector <CSampleIDWeight> samples = ReadSampleFromFile(file_name); 
+	if ((int)(samples.size()) <= 0)
+		return false; 
+	best = samples[0]; 
+	for (int i=1; i<(int)(samples.size()); i++)
+	{
+		if (samples[i].GetWeight() > best.GetWeight())
+			best = samples[i]; 
+	}
 	return true; 
 }
 

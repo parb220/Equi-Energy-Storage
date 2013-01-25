@@ -40,6 +40,26 @@ int CStorageHead::DepositSample(int _bin_id, const double *x, int x_d, int x_ID,
 	return bin[_bin_id].DepositSample(x, x_d, x_ID, x_weight); 
 } 
 
+bool CStorageHead::DrawLeastWeightSample(int _bin_id, CSampleIDWeight &sample) const
+{
+	return bin[_bin_id].DrawLeastWeightSample(sample); 
+}
+
+bool CStorageHead::DrawLeastWeightSample(int _bin_id, double *x, int x_d, int &x_ID, double &x_weight) const
+{
+	return bin[_bin_id].DrawLeastWeightSample(x, x_d, x_ID, x_weight); 
+}
+
+bool CStorageHead::DrawMostWeightSample(int _bin_id, CSampleIDWeight &sample) const
+{
+	return bin[_bin_id].DrawMostWeightSample(sample); 
+}
+
+bool CStorageHead::DrawMostWeightSample(int _bin_id, double *x, int x_d, int &x_ID, double &x_weight) const
+{
+	return bin[_bin_id].DrawMostWeightSample(x, x_d, x_ID, x_weight); 
+}
+
 bool CStorageHead::DrawSample(int _bin_id, const gsl_rng *r, CSampleIDWeight &sample)
 {
 	return bin[_bin_id].DrawSample(r, sample); 	
